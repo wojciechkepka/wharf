@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 #[macro_use] extern crate failure;
+use opts::Query;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -63,7 +64,23 @@ pub struct Container {
     NetworkSettings: Value,
     Mounts: Vec<Value>,
 }
+macro_rules! post_container {
+    ($api:expr, $d:ident) => {{
+        let client = reqwest::Client::new();
+        let res = client.post($d.url.join($api)?).body("").send().await?;
+        match res.status().as_u16() {
+            204 => Ok(()),
+            404 => Err(format_err!("no such container")),
+            500 => Err(format_err!("internal server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }}
+}
 impl Container {
+
     /// Starts the container
     pub async fn start(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();
@@ -96,31 +113,19 @@ impl Container {
     }
     /// Restarts the container
     pub async fn restart(docker: &Docker, id: String) -> Result<(), Error> {
-        let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/restart", id))?).body("").send().await?;
-        match res.status().as_u16() {
-            204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
-        }
+        Ok(post_container!(&format!("containers/{}/restart", id), docker)?)
     }
     /// Kills the container
     pub async fn kill(docker: &Docker, id: String) -> Result<(), Error> {
-        let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/kill", id))?).body("").send().await?;
-        match res.status().as_u16() {
-            204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
-        }
+        Ok(post_container!(&format!("containers/{}/kill", id), docker)?)
+    }
+    /// Unpauses the container
+    pub async fn unpause(docker: &Docker, id: String) -> Result<(), Error> {
+        Ok(post_container!(&format!("containers/{}/unpause", id), docker)?)
+    }
+    /// Pauses the container
+    pub async fn pause(docker: &Docker, id: String) -> Result<(), Error> {
+        Ok(post_container!(&format!("containers/{}/pause", id), docker)?)
     }
     /// Rename container
     pub async fn rename(docker: &Docker, id: String, new_name: String) -> Result<(), Error> {
@@ -138,12 +143,28 @@ impl Container {
             }
         }
     }
-    /// Work in progress...
-    pub async fn logs(docker: &Docker, id: String, params: LogsQueryParameters) -> Result<String, Error> {
+    /// Remove a container
+    pub async fn remove(docker: &Docker, id: String, opts: opts::RmContainerOpts) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        
-        let res = client.get(docker.url.join(&format!("containers/{}/logs", id))?).body(serde_json::to_string(&params)?).send().await?;
+        let res = client.post(docker.url.join(&format!("containers/{}/rename", id))?).query(&opts.to_query()).send().await?;
+        let status = res.status().as_u16();
+        match status {
+            204 => Ok(()),
+            404 => Err(format_err!("no such container")),
+            409 => Err(format_err!("name already in use")),
+            500 => Err(format_err!("internal server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+    /// Work in progress...
+    pub async fn logs(docker: &Docker, id: String, opts: opts::ContainerLogsOpts) -> Result<String, Error> {
+        let client = reqwest::Client::new();
+        let res = client.get(docker.url.join(&format!("containers/{}/logs", id))?).query(&opts.to_query()).send().await?;
         match res.status().as_u16() {
+            200 => Ok(res.text().await?),
             204 => Ok(res.text().await?),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
@@ -154,15 +175,114 @@ impl Container {
         }
     }
 }
-#[derive(Default, Serialize, Deserialize)]
-pub struct LogsQueryParameters {
-    follow: bool,
-    pub stdout: bool,
-    stderr: bool,
-    since: u32,
-    until: u32,
-    timestamps: bool,
-    tail: String,
+pub mod opts {
+    pub trait Query {
+        fn to_query(self) -> Vec<(&'static str, String)>;
+    }
+    /// Options for Container::remove method
+    pub struct RmContainerOpts {
+        v: bool,
+        force: bool,
+        link: bool,
+    }
+    impl Query for RmContainerOpts {
+        fn to_query(self) -> Vec<(&'static str, String)> {
+            vec![("v", self.v.to_string()), ("force", self.force.to_string())]
+        }
+        
+    }
+    impl RmContainerOpts {
+        pub fn new() -> Self {
+            RmContainerOpts {
+                v: false,
+                force: false,
+                link: false,
+            }
+        }
+        /// Remove the volumes associated with the container.
+        pub fn volumes(&mut self, v: bool) {
+            self.v = v;
+        }
+        /// If the container is running, kill it before removing it.
+        pub fn force(&mut self, force: bool) {
+            self.force = force;
+        }
+        /// Remove the specified link associated with the container.
+        pub fn link(&mut self, link: bool) {
+            self.link = link;
+        }
+    }
+    /// Options for Container::logs method
+    pub struct ContainerLogsOpts {
+        follow: bool,
+        // Return logs from stdout
+        stdout: bool,
+        // Return logs from stderr
+        stderr: bool,
+        // Only return logs since this time, as a UNIX timestamp
+        since: u32,
+        // Only return logs before this time, as a UNIX timestamp
+        until: u32,
+        // Add timestamps to every log line
+        timestamps: bool,
+        // Only return this number of log lines from the end of the logs. Specify as an integer or all to output all log lines.
+        tail: String,
+    }
+    impl Query for ContainerLogsOpts {
+        fn to_query(self) -> Vec<(&'static str, String)> {
+            vec![
+                ("follow", self.follow.to_string()),
+                ("stdout", self.stdout.to_string()),
+                ("stderr", self.stderr.to_string()),
+                ("since", self.since.to_string()),
+                ("until", self.until.to_string()),
+                ("timestamps", self.timestamps.to_string()),
+                ("tail", self.tail),
+            ]
+        }
+        
+    }
+    impl ContainerLogsOpts {
+        pub fn new() -> Self {
+            ContainerLogsOpts {
+                follow: false,
+                stdout: false,
+                stderr: false,
+                since: 0,
+                until: 0,
+                timestamps: false,
+                tail: "all".to_string(),
+            }
+        }
+        /// Keep connection after returning logs.
+        pub fn follow(&mut self, follow: bool) {
+            self.follow = follow;
+        }
+        /// Return logs from stdout
+        pub fn stdout(&mut self, stdout: bool) {
+            self.stdout = stdout;
+        }
+        /// Return logs from stderr
+        pub fn stderr(&mut self, stderr: bool) {
+            self.stderr = stderr;
+        }
+        /// Only return logs since this time, as a UNIX timestamp
+        pub fn since(&mut self, since: u32) {
+            self.since = since;
+        }
+        /// Only return logs before this time, as a UNIX timestamp
+        pub fn until(&mut self, until: u32) {
+            self.until = until;
+        }
+        /// Add timestamps to every log file
+        pub fn timestamps(&mut self, timestamps: bool) {
+            self.timestamps = timestamps;
+        }
+        /// Only return this number of log lines from the end of the logs. Specify as an integer or all to output all log lines
+        pub fn tail(&mut self, tail: String) {
+            self.tail = tail;
+        }
+    }
 }
 
 /// Api wrapper for containers

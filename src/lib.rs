@@ -215,17 +215,11 @@ pub mod opts {
     /// Options for Container::logs method
     pub struct ContainerLogsOpts {
         follow: bool,
-        // Return logs from stdout
         stdout: bool,
-        // Return logs from stderr
         stderr: bool,
-        // Only return logs since this time, as a UNIX timestamp
         since: u32,
-        // Only return logs before this time, as a UNIX timestamp
         until: u32,
-        // Add timestamps to every log line
         timestamps: bool,
-        // Only return this number of log lines from the end of the logs. Specify as an integer or all to output all log lines.
         tail: String,
     }
     impl Query for ContainerLogsOpts {

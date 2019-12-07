@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 #[macro_use] extern crate failure;
-use std::collections::HashMap;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -38,6 +37,15 @@ pub struct Image {
     Labels: Value,
     Containers: isize,
 }
+#[derive(Serialize, Deserialize)]
+struct Msg {
+    message: String
+}
+impl Msg {
+    fn msg(self) -> String {
+        self.message
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Container {
@@ -59,59 +67,90 @@ impl Container {
     /// Starts the container
     pub async fn start(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let mut res = client.post(docker.url.join(&format!("containers/{}/start", id))?).body("").send().await?;
+        let res = client.post(docker.url.join(&format!("containers/{}/start", id))?).body("").send().await?;
         match res.status().as_u16() {
             204 => Ok(()),
             304 => Err(format_err!("container already started")),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
-            _ => Err(format_err!("unknown error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
         }
     }
     /// Stops the container
     pub async fn stop(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let mut res = client.post(docker.url.join(&format!("containers/{}/stop", id))?).body("").send().await?;
+        let res = client.post(docker.url.join(&format!("containers/{}/stop", id))?).body("").send().await?;
         match res.status().as_u16() {
             204 => Ok(()),
             304 => Err(format_err!("container already stopped")),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
-            _ => Err(format_err!("unknown error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
         }
     }
     /// Restarts the container
     pub async fn restart(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let mut res = client.post(docker.url.join(&format!("containers/{}/restart", id))?).body("").send().await?;
+        let res = client.post(docker.url.join(&format!("containers/{}/restart", id))?).body("").send().await?;
         match res.status().as_u16() {
             204 => Ok(()),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
-            _ => Err(format_err!("unknown error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
         }
     }
     /// Kills the container
     pub async fn kill(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let mut res = client.post(docker.url.join(&format!("containers/{}/kill", id))?).body("").send().await?;
+        let res = client.post(docker.url.join(&format!("containers/{}/kill", id))?).body("").send().await?;
         match res.status().as_u16() {
             204 => Ok(()),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
-            _ => Err(format_err!("unknown error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+    /// Rename container
+    pub async fn rename(docker: &Docker, id: String, new_name: String) -> Result<(), Error> {
+        let client = reqwest::Client::new();
+        let res = client.post(docker.url.join(&format!("containers/{}/rename", id))?).query(&[("name", new_name)]).send().await?;
+        let status = res.status().as_u16();
+        match status {
+            204 => Ok(()),
+            404 => Err(format_err!("no such container")),
+            409 => Err(format_err!("name already in use")),
+            500 => Err(format_err!("internal server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
         }
     }
     /// Work in progress...
     pub async fn logs(docker: &Docker, id: String, params: LogsQueryParameters) -> Result<String, Error> {
         let client = reqwest::Client::new();
         
-        let mut res = client.get(docker.url.join(&format!("containers/{}/logs", id))?).body(serde_json::to_string(&params)?).send().await?;
+        let res = client.get(docker.url.join(&format!("containers/{}/logs", id))?).body(serde_json::to_string(&params)?).send().await?;
         match res.status().as_u16() {
             204 => Ok(res.text().await?),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
-            _ => Err(format_err!("unknown error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
         }
     }
 }
@@ -130,7 +169,7 @@ pub struct LogsQueryParameters {
 pub struct Containers {}
 impl Containers {
     pub async fn list(docker: &Docker) -> Result<Vec<Container> , Error> {
-        let mut res = reqwest::get(docker.url.join("containers/json")?).await?;
+        let res = reqwest::get(docker.url.join("containers/json")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
@@ -139,7 +178,7 @@ impl Containers {
 pub struct Images {}
 impl Images {
     pub async fn list(docker: &Docker) -> Result<Vec<Image> , Error> {
-        let mut res = reqwest::get(docker.url.join("images/json")?).await?;
+        let res = reqwest::get(docker.url.join("images/json")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
@@ -148,7 +187,7 @@ impl Images {
 pub struct Networks {}
 impl Networks {
     pub async fn list(docker: &Docker) -> Result<Vec<Network> , Error> {
-        let mut res = reqwest::get(docker.url.join("networks")?).await?;
+        let res = reqwest::get(docker.url.join("networks")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }

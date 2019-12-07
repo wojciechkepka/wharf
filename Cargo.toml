@@ -9,7 +9,7 @@ homepage = "https://github.com/wojciechkepka/wharf"
 repository = "https://github.com/wojciechkepka/wharf"
 keywords = ["docker", "api",]
 description = "Yet another docker api library"
-categories = ["API bindings"]
+categories = ["api-bindings"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

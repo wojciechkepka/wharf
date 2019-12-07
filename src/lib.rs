@@ -1,11 +1,11 @@
 #![allow(non_snake_case)]
-#[macro_use] extern crate failure;
-use opts::Query;
+#[macro_use]
+extern crate failure;
 use failure::Error;
+use opts::Query;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
-
 
 pub struct Docker {
     url: Url,
@@ -40,7 +40,7 @@ pub struct Image {
 }
 #[derive(Serialize, Deserialize)]
 struct Msg {
-    message: String
+    message: String,
 }
 impl Msg {
     fn msg(self) -> String {
@@ -77,10 +77,9 @@ macro_rules! post_container {
                 Err(format_err!("{}", m.msg()))
             }
         }
-    }}
+    }};
 }
 impl Container {
-    
     pub fn id(&self) -> String {
         self.Id.clone()
     }
@@ -121,9 +120,13 @@ impl Container {
         self.Mounts.clone()
     }
     /// Starts the container
-    pub async fn start(docker: &Docker, id: String) -> Result<(), Error> {
+    pub async fn start(docker: &Docker, id: &str) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/start", id))?).body("").send().await?;
+        let res = client
+            .post(docker.url.join(&format!("containers/{}/start", id))?)
+            .body("")
+            .send()
+            .await?;
         match res.status().as_u16() {
             204 => Ok(()),
             304 => Err(format_err!("container already started")),
@@ -136,9 +139,13 @@ impl Container {
         }
     }
     /// Stops the container
-    pub async fn stop(docker: &Docker, id: String) -> Result<(), Error> {
+    pub async fn stop(docker: &Docker, id: &str) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/stop", id))?).body("").send().await?;
+        let res = client
+            .post(docker.url.join(&format!("containers/{}/stop", id))?)
+            .body("")
+            .send()
+            .await?;
         match res.status().as_u16() {
             204 => Ok(()),
             304 => Err(format_err!("container already stopped")),
@@ -151,25 +158,38 @@ impl Container {
         }
     }
     /// Restarts the container
-    pub async fn restart(docker: &Docker, id: String) -> Result<(), Error> {
-        Ok(post_container!(&format!("containers/{}/restart", id), docker)?)
+    pub async fn restart(docker: &Docker, id: &str) -> Result<(), Error> {
+        Ok(post_container!(
+            &format!("containers/{}/restart", id),
+            docker
+        )?)
     }
     /// Kills the container
-    pub async fn kill(docker: &Docker, id: String) -> Result<(), Error> {
+    pub async fn kill(docker: &Docker, id: &str) -> Result<(), Error> {
         Ok(post_container!(&format!("containers/{}/kill", id), docker)?)
     }
     /// Unpauses the container
-    pub async fn unpause(docker: &Docker, id: String) -> Result<(), Error> {
-        Ok(post_container!(&format!("containers/{}/unpause", id), docker)?)
+    pub async fn unpause(docker: &Docker, id: &str) -> Result<(), Error> {
+        Ok(post_container!(
+            &format!("containers/{}/unpause", id),
+            docker
+        )?)
     }
     /// Pauses the container
-    pub async fn pause(docker: &Docker, id: String) -> Result<(), Error> {
-        Ok(post_container!(&format!("containers/{}/pause", id), docker)?)
+    pub async fn pause(docker: &Docker, id: &str) -> Result<(), Error> {
+        Ok(post_container!(
+            &format!("containers/{}/pause", id),
+            docker
+        )?)
     }
     /// Rename container
-    pub async fn rename(docker: &Docker, id: String, new_name: String) -> Result<(), Error> {
+    pub async fn rename(docker: &Docker, id: &str, new_name: &str) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/rename", id))?).query(&[("name", new_name)]).send().await?;
+        let res = client
+            .post(docker.url.join(&format!("containers/{}/rename", id))?)
+            .query(&[("name", new_name)])
+            .send()
+            .await?;
         let status = res.status().as_u16();
         match status {
             204 => Ok(()),
@@ -183,9 +203,17 @@ impl Container {
         }
     }
     /// Remove a container
-    pub async fn remove(docker: &Docker, id: String, opts: opts::RmContainerOpts) -> Result<(), Error> {
+    pub async fn remove(
+        docker: &Docker,
+        id: &str,
+        opts: opts::RmContainerOpts,
+    ) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let res = client.post(docker.url.join(&format!("containers/{}/rename", id))?).query(&opts.to_query()).send().await?;
+        let res = client
+            .post(docker.url.join(&format!("containers/{}/rename", id))?)
+            .query(&opts.to_query())
+            .send()
+            .await?;
         let status = res.status().as_u16();
         match status {
             204 => Ok(()),
@@ -199,9 +227,17 @@ impl Container {
         }
     }
     /// Work in progress...
-    pub async fn logs(docker: &Docker, id: String, opts: opts::ContainerLogsOpts) -> Result<String, Error> {
+    pub async fn logs(
+        docker: &Docker,
+        id: &str,
+        opts: opts::ContainerLogsOpts,
+    ) -> Result<String, Error> {
         let client = reqwest::Client::new();
-        let res = client.get(docker.url.join(&format!("containers/{}/logs", id))?).query(&opts.to_query()).send().await?;
+        let res = client
+            .get(docker.url.join(&format!("containers/{}/logs", id))?)
+            .query(&opts.to_query())
+            .send()
+            .await?;
         match res.status().as_u16() {
             200 => Ok(res.text().await?),
             204 => Ok(res.text().await?),
@@ -228,7 +264,6 @@ pub mod opts {
         fn to_query(self) -> Vec<(&'static str, String)> {
             vec![("v", self.v.to_string()), ("force", self.force.to_string())]
         }
-        
     }
     impl RmContainerOpts {
         pub fn new() -> Self {
@@ -273,7 +308,6 @@ pub mod opts {
                 ("tail", self.tail),
             ]
         }
-        
     }
     impl ContainerLogsOpts {
         pub fn new() -> Self {
@@ -321,7 +355,7 @@ pub mod opts {
 /// Api wrapper for containers
 pub struct Containers {}
 impl Containers {
-    pub async fn list(docker: &Docker) -> Result<Vec<Container> , Error> {
+    pub async fn list(docker: &Docker) -> Result<Vec<Container>, Error> {
         let res = reqwest::get(docker.url.join("containers/json")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
@@ -330,7 +364,7 @@ impl Containers {
 
 pub struct Images {}
 impl Images {
-    pub async fn list(docker: &Docker) -> Result<Vec<Image> , Error> {
+    pub async fn list(docker: &Docker) -> Result<Vec<Image>, Error> {
         let res = reqwest::get(docker.url.join("images/json")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
@@ -339,7 +373,7 @@ impl Images {
 
 pub struct Networks {}
 impl Networks {
-    pub async fn list(docker: &Docker) -> Result<Vec<Network> , Error> {
+    pub async fn list(docker: &Docker) -> Result<Vec<Network>, Error> {
         let res = reqwest::get(docker.url.join("networks")?).await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)

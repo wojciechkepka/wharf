@@ -1,3 +1,4 @@
+use failure::Error;
 #[cfg(test)]
 mod tests {
     #[test]

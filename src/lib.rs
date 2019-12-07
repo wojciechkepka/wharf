@@ -80,7 +80,46 @@ macro_rules! post_container {
     }}
 }
 impl Container {
-
+    
+    pub fn id(&self) -> String {
+        self.Id.clone()
+    }
+    pub fn names(&self) -> Vec<String> {
+        self.Names.clone()
+    }
+    pub fn image(&self) -> String {
+        self.Image.clone()
+    }
+    pub fn image_id(&self) -> String {
+        self.ImageID.clone()
+    }
+    pub fn command(&self) -> String {
+        self.Command.clone()
+    }
+    pub fn created(&self) -> u32 {
+        self.Created.clone()
+    }
+    pub fn state(&self) -> String {
+        self.State.clone()
+    }
+    pub fn status(&self) -> String {
+        self.Status.clone()
+    }
+    pub fn ports(&self) -> Vec<Value> {
+        self.Ports.clone()
+    }
+    pub fn labels(&self) -> Value {
+        self.Labels.clone()
+    }
+    pub fn host_config(&self) -> Value {
+        self.HostConfig.clone()
+    }
+    pub fn network_settings(&self) -> Value {
+        self.NetworkSettings.clone()
+    }
+    pub fn mounts(&self) -> Vec<Value> {
+        self.Mounts.clone()
+    }
     /// Starts the container
     pub async fn start(docker: &Docker, id: String) -> Result<(), Error> {
         let client = reqwest::Client::new();

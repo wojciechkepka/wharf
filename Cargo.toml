@@ -3,6 +3,13 @@ name = "wharf"
 version = "0.1.0"
 authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
 edition = "2018"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/wojciechkepka/wharf"
+repository = "https://github.com/wojciechkepka/wharf"
+keywords = ["docker", "api",]
+description = "Yet another docker api library"
+categories = ["API bindings"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

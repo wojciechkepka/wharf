@@ -38,44 +38,44 @@ macro_rules! post_container {
     }};
 }
 impl Container {
-    pub fn id(&self) -> String {
-        self.Id.clone()
+    pub fn id(&self) -> &str {
+        &self.Id
     }
-    pub fn names(&self) -> Vec<String> {
-        self.Names.clone()
+    pub fn names(&self) -> &Vec<String> {
+        &self.Names
     }
-    pub fn image(&self) -> String {
-        self.Image.clone()
+    pub fn image(&self) -> &str {
+        &self.Image
     }
-    pub fn image_id(&self) -> String {
-        self.ImageID.clone()
+    pub fn image_id(&self) -> &str {
+        &self.ImageID
     }
-    pub fn command(&self) -> String {
-        self.Command.clone()
+    pub fn command(&self) -> &str {
+        &self.Command
     }
     pub fn created(&self) -> u32 {
-        self.Created.clone()
+        self.Created
     }
-    pub fn state(&self) -> String {
-        self.State.clone()
+    pub fn state(&self) -> &str {
+        &self.State
     }
-    pub fn status(&self) -> String {
-        self.Status.clone()
+    pub fn status(&self) -> &str {
+        &self.Status
     }
-    pub fn ports(&self) -> Vec<Value> {
-        self.Ports.clone()
+    pub fn ports(&self) -> &Vec<Value> {
+        &self.Ports
     }
-    pub fn labels(&self) -> Value {
-        self.Labels.clone()
+    pub fn labels(&self) -> &Value {
+        &self.Labels
     }
-    pub fn host_config(&self) -> Value {
-        self.HostConfig.clone()
+    pub fn host_config(&self) -> &Value {
+        &self.HostConfig
     }
-    pub fn network_settings(&self) -> Value {
-        self.NetworkSettings.clone()
+    pub fn network_settings(&self) -> &Value {
+        &self.NetworkSettings
     }
-    pub fn mounts(&self) -> Vec<Value> {
-        self.Mounts.clone()
+    pub fn mounts(&self) -> &Vec<Value> {
+        &self.Mounts
     }
     /// Starts the container
     pub async fn start(docker: &Docker, id: &str) -> Result<(), Error> {
@@ -218,7 +218,7 @@ impl Container {
             .await?;
         let status = res.status().as_u16();
         match status {
-            200 => Ok(res.url().clone()),
+            200 => Ok(res.url()),
             400 => Err(format_err!("bad parameter")),
             404 => Err(format_err!("container or path does not exist")),
             500 => Err(format_err!("server error")),

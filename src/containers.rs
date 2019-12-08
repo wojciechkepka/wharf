@@ -1,9 +1,10 @@
 extern crate base64;
+use std::collections::HashMap;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 use std::str;
@@ -321,26 +322,27 @@ impl<'d> Container<'d> {
         }
     }
     /// Create a container
-    pub async fn create(&self, opts: ContainerBuilderOpts) -> Result<(), Error> {
+    pub async fn create(&self, name: &str, opts: ContainerBuilderOpts) -> Result<(), Error> {
         let res = self
             .docker
             .client
             .post(self.docker.url.join("containers/create")?)
-            .query(&opts.to_query())
+            .query(&[("name", name)])
+            .header("Content-type", "application/json")
+            .json(&opts.opts)
             .send()
             .await?;
         let status = res.status().as_u16();
+        println!("{:?}", res);
         match status {
-            204 => Ok(()),
+            201 => Ok(()),
+            400 => Err(format_err!("bad parameter")),
             404 => Err(format_err!("no such container")),
-            409 => Err(format_err!("name already in use")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
+            _ => { 
                 let m: Msg = serde_json::from_str(&res.text().await?)?;
                 Err(format_err!("{}", m.msg()))
             }
         }
-        Ok(())
     }
 }
 #[derive(Serialize, Deserialize, Debug)]

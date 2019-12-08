@@ -75,4 +75,3 @@ impl Networks {
         Ok(serde_json::from_str(&body)?)
     }
 }
-

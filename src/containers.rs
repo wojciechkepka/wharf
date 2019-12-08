@@ -1,5 +1,4 @@
 extern crate base64;
-use std::str;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
@@ -7,10 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
+use std::str;
 use url::Url;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ContainerJson{
+pub struct ContainerJson {
     Id: String,
     Names: Vec<String>,
     Image: String,
@@ -69,7 +69,13 @@ impl ContainerJson {
 
 macro_rules! post_container {
     ($api:expr, $d:ident) => {{
-        let res = $d.docker.client.post($d.docker.url.join($api)?).body("").send().await?;
+        let res = $d
+            .docker
+            .client
+            .post($d.docker.url.join($api)?)
+            .body("")
+            .send()
+            .await?;
         match res.status().as_u16() {
             204 => Ok(()),
             404 => Err(format_err!("no such container")),
@@ -82,7 +88,7 @@ macro_rules! post_container {
     }};
 }
 pub struct Container<'d> {
-    docker: &'d Docker
+    docker: &'d Docker,
 }
 impl<'d> Container<'d> {
     /// Interface API for a single container
@@ -91,7 +97,9 @@ impl<'d> Container<'d> {
     }
     /// Starts the container
     pub async fn start(&self, id: &str) -> Result<(), Error> {
-        let res = self.docker.client
+        let res = self
+            .docker
+            .client
             .post(self.docker.url.join(&format!("containers/{}/start", id))?)
             .body("")
             .send()
@@ -109,7 +117,9 @@ impl<'d> Container<'d> {
     }
     /// Stops the container
     pub async fn stop(&self, id: &str) -> Result<(), Error> {
-        let res = self.docker.client
+        let res = self
+            .docker
+            .client
             .post(self.docker.url.join(&format!("containers/{}/stop", id))?)
             .body("")
             .send()
@@ -145,14 +155,13 @@ impl<'d> Container<'d> {
     }
     /// Pauses the container
     pub async fn pause(&self, id: &str) -> Result<(), Error> {
-        Ok(post_container!(
-            &format!("containers/{}/pause", id),
-            self
-        )?)
+        Ok(post_container!(&format!("containers/{}/pause", id), self)?)
     }
     /// Rename container
     pub async fn rename(&self, id: &str, new_name: &str) -> Result<(), Error> {
-        let res = self.docker.client
+        let res = self
+            .docker
+            .client
             .post(self.docker.url.join(&format!("containers/{}/rename", id))?)
             .query(&[("name", new_name)])
             .send()
@@ -171,7 +180,9 @@ impl<'d> Container<'d> {
     }
     /// Remove a container
     pub async fn remove(&self, id: &str, opts: RmContainerOpts) -> Result<(), Error> {
-        let res = self.docker.client
+        let res = self
+            .docker
+            .client
             .post(self.docker.url.join(&format!("containers/{}/rename", id))?)
             .query(&opts.to_query())
             .send()
@@ -190,7 +201,9 @@ impl<'d> Container<'d> {
     }
     /// Work in progress...
     pub async fn logs(&self, id: &str, opts: ContainerLogsOpts) -> Result<String, Error> {
-        let res = self.docker.client
+        let res = self
+            .docker
+            .client
             .get(self.docker.url.join(&format!("containers/{}/logs", id))?)
             .query(&opts.to_query())
             .send()
@@ -208,13 +221,15 @@ impl<'d> Container<'d> {
     }
     /// Get a tar archive of a resource in the filesystem of container id
     /// Returns URL to the archived resource
-    pub async fn archive_path<P: AsRef<Path>>(
-        &self,
-        id: &str,
-        p: P,
-    ) -> Result<Url, Error> {
-        let res = self.docker.client
-            .get(self.docker.url.join(&format!("containers/{}/archive", id))?)
+    pub async fn archive_path<P: AsRef<Path>>(&self, id: &str, p: P) -> Result<Url, Error> {
+        let res = self
+            .docker
+            .client
+            .get(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/archive", id))?,
+            )
             .query(&[("path", p.as_ref())])
             .send()
             .await?;
@@ -238,8 +253,14 @@ impl<'d> Container<'d> {
         path_to_archive: P,
         opts: UploadArchiveOpts,
     ) -> Result<(), Error> {
-        let res = self.docker.client
-            .get(self.docker.url.join(&format!("containers/{}/archive", id))?)
+        let res = self
+            .docker
+            .client
+            .get(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/archive", id))?,
+            )
             .query(&opts.to_query())
             // #TODO
             // This is not working
@@ -263,13 +284,15 @@ impl<'d> Container<'d> {
     }
     /// Get information about files in a container
     /// A response header X-Docker-Container-Path-Stat is return containing a base64 - encoded JSON object with some filesystem header information about the path.
-    pub async fn file_info<P: AsRef<Path>>(
-        &self,
-        id: &str,
-        path: P,
-    ) -> Result<FileInfo, Error> {
-        let res = self.docker.client
-            .head(self.docker.url.join(&format!("containers/{}/archive", id))?)
+    pub async fn file_info<P: AsRef<Path>>(&self, id: &str, path: P) -> Result<FileInfo, Error> {
+        let res = self
+            .docker
+            .client
+            .head(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/archive", id))?,
+            )
             .query(&[("path", path.as_ref().to_str())])
             // #TODO
             // This is not working
@@ -277,16 +300,16 @@ impl<'d> Container<'d> {
             .await?;
         let status = res.status().as_u16();
         match status {
-            200 => {
-                match res.headers().get("X-Docker-Container-Path-Stat") {
-                    Some(data) => {
-                        let data = base64::decode(data)?;
-                        let file_info: FileInfo = serde_json::from_str(str::from_utf8(&data)?)?;
-                        Ok(file_info)
-                    }
-                    None => Err(format_err!("could not parse FileInfo from base64 encoded header")),
+            200 => match res.headers().get("X-Docker-Container-Path-Stat") {
+                Some(data) => {
+                    let data = base64::decode(data)?;
+                    let file_info: FileInfo = serde_json::from_str(str::from_utf8(&data)?)?;
+                    Ok(file_info)
                 }
-            }
+                None => Err(format_err!(
+                    "could not parse FileInfo from base64 encoded header"
+                )),
+            },
             400 => Err(format_err!("bad parameter")),
             403 => Err(format_err!(
                 "permission denied, the volume or container rootfs is marked as read-only"
@@ -299,7 +322,6 @@ impl<'d> Container<'d> {
             }
         }
     }
-
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileInfo {
@@ -307,22 +329,25 @@ pub struct FileInfo {
     size: usize,
     mode: usize,
     mtime: String,
-    linkTarget: String
+    linkTarget: String,
 }
 
 /// Api wrapper for containers
 pub struct Containers<'d> {
-    docker: &'d Docker
+    docker: &'d Docker,
 }
 impl<'d> Containers<'d> {
     /// new API interface for containers
-    pub fn new(self, docker: &'d Docker) -> Containers {
-        Containers {
-            docker
-        }
+    pub fn new(docker: &'d Docker) -> Containers {
+        Containers { docker }
     }
-    pub async fn list(self) -> Result<Vec<ContainerJson>, Error> {
-        let res = self.docker.client.get(self.docker.url.join("containers/json")?).send().await?;
+    pub async fn list(&self) -> Result<Vec<ContainerJson>, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("containers/json")?)
+            .send()
+            .await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }

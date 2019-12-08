@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate failure;
 pub mod containers;
+pub mod images;
 pub mod opts;
 use failure::Error;
 use serde::{Deserialize, Serialize};

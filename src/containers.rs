@@ -294,8 +294,6 @@ impl<'d> Container<'d> {
                     .join(&format!("containers/{}/archive", id))?,
             )
             .query(&[("path", path.as_ref().to_str())])
-            // #TODO
-            // This is not working
             .send()
             .await?;
         let status = res.status().as_u16();

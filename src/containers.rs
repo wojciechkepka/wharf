@@ -4,6 +4,7 @@ use crate::{Docker, Msg};
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::str;
@@ -64,6 +65,26 @@ impl ContainerJson {
     }
     pub fn mounts(&self) -> &Vec<Value> {
         &self.Mounts
+    }
+}
+#[derive(Serialize, Deserialize)]
+struct ContainerProcessesJson {
+    Titles: Vec<String>,
+    Processes: Vec<Vec<String>>,
+}
+#[derive(Debug)]
+pub struct Process {
+    info: HashMap<String, String>,
+}
+impl Process {
+    fn new(titles: &[String], processes: &[String]) -> Self {
+        Process {
+            info: titles
+                .iter()
+                .map(|t| t.clone())
+                .zip(processes.iter().map(|p| p.clone()))
+                .collect(),
+        }
     }
 }
 
@@ -370,6 +391,38 @@ impl<'d> Container<'d> {
             201 => Ok(()),
             400 => Err(format_err!("bad parameter")),
             404 => Err(format_err!("no such container")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+    /// List processes running inside a container
+    /// On Unix systems, this is done by running the ps command. This endpoint is not supported on Windows.
+    pub async fn ps<S: AsRef<str>>(&self, ps_args: S) -> Result<Vec<Process>, Error> {
+        let res = self
+            .docker
+            .client
+            .get(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/top", self.id))?,
+            )
+            .query(&[("ps_args", ps_args.as_ref())])
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            200 => {
+                let data: ContainerProcessesJson = serde_json::from_str(&res.text().await?)?;
+                Ok(data
+                    .Processes
+                    .iter()
+                    .map(|p| Process::new(&data.Titles, &p))
+                    .collect())
+            }
+            404 => Err(format_err!("no such container")),
+            500 => Err(format_err!("server error")),
             _ => {
                 let m: Msg = serde_json::from_str(&res.text().await?)?;
                 Err(format_err!("{}", m.msg()))

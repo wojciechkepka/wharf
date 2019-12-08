@@ -1,7 +1,7 @@
 use crate::{Docker, Msg};
-use serde_json::Value;
-use serde::{Deserialize, Serialize};
 use failure::Error;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Network {
@@ -21,7 +21,7 @@ pub struct Network {
 pub struct Networks<'d> {
     docker: &'d Docker,
 }
-impl<'a> Networks<'a> {
+impl<'d> Networks<'d> {
     pub fn new(docker: &'d Docker) -> Networks {
         Networks { docker }
     }

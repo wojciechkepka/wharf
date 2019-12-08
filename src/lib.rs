@@ -37,18 +37,6 @@ pub struct Network {
     Options: Value,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Image {
-    Id: String,
-    ParentId: String,
-    RepoTags: Vec<String>,
-    RepoDigests: Vec<String>,
-    Created: u32,
-    Size: isize,
-    VirtualSize: u32,
-    Labels: Value,
-    Containers: isize,
-}
 #[derive(Serialize, Deserialize)]
 struct Msg {
     message: String,
@@ -56,15 +44,6 @@ struct Msg {
 impl Msg {
     fn msg(self) -> String {
         self.message
-    }
-}
-
-pub struct Images {}
-impl Images {
-    pub async fn list(docker: &Docker) -> Result<Vec<Image>, Error> {
-        let res = reqwest::get(docker.url.join("images/json")?).await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
     }
 }
 

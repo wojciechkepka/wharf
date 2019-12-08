@@ -10,7 +10,6 @@ use crate::images::Images;
 use crate::networks::Networks;
 use failure::Error;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use url::Url;
 
 pub struct Docker {

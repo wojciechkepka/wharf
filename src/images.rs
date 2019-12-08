@@ -1,5 +1,4 @@
-use crate::opts::*;
-use crate::{Docker, Msg};
+use crate::Docker;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

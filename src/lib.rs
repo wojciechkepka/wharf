@@ -3,6 +3,7 @@
 extern crate failure;
 pub mod containers;
 pub mod images;
+pub mod networks;
 pub mod opts;
 use failure::Error;
 use serde::{Deserialize, Serialize};
@@ -22,20 +23,6 @@ impl Docker {
         })
     }
 }
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Network {
-    Name: String,
-    Id: String,
-    Created: String,
-    Scope: String,
-    Driver: String,
-    EnableIPv6: bool,
-    Internal: bool,
-    Attachable: bool,
-    Ingress: bool,
-    IPAM: Value,
-    Options: Value,
-}
 
 #[derive(Serialize, Deserialize)]
 struct Msg {
@@ -44,14 +31,5 @@ struct Msg {
 impl Msg {
     fn msg(self) -> String {
         self.message
-    }
-}
-
-pub struct Networks {}
-impl Networks {
-    pub async fn list(docker: &Docker) -> Result<Vec<Network>, Error> {
-        let res = reqwest::get(docker.url.join("networks")?).await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
     }
 }

@@ -36,6 +36,10 @@ impl Docker {
     pub fn networks(&self) -> Networks {
         Networks::new(&self)
     }
+
+    pub fn auth_token(&self, opts: AuthOpts) -> String {
+        self.client.post(self.url.join("/auth")?)
+    }
 }
 
 #[derive(Serialize, Deserialize)]

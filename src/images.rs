@@ -9,7 +9,7 @@ pub struct ImagesJson {
     ParentId: String,
     RepoTags: Vec<String>,
     RepoDigests: Vec<String>,
-    Created: u32,
+    Created: u64,
     Size: isize,
     VirtualSize: isize,
     SharedSize: isize,

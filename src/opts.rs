@@ -250,3 +250,53 @@ impl ContainerBuilderOpts {
     pub fn host_config(&mut self, _: Value) {}
     pub fn network_config(&mut self, _: Value) {}
 }
+
+/// Options for creating image
+pub struct CreateImageOpts {
+    fromImage: String,
+    fromSrc: String,
+    repo: String,
+    tag: String,
+    platform: String,
+}
+impl Query for CreateImageOpts {
+    fn to_query(self) -> Vec<(&'static str, String)> {
+        vec![]
+    }
+}
+
+/// Options for authentication
+#[derive(Default)]
+pub struct AuthOpts {
+    username: String,
+    password: String,
+    email: String,
+    server_address: String,
+}
+
+impl AuthOpts {
+    pub fn new() -> Self {
+        AuthOpts::default()
+    }
+    pub fn username<S: Into<String>>(&mut self, username: S) {
+        self.username = username.into();
+    }
+    pub fn password<S: Into<String>>(&mut self, password: S) {
+        self.password = password.into();
+    }
+    pub fn email<S: Into<String>>(&mut self, email: S) {
+        self.email = email.into();
+    }
+    pub fn server_address<S: Into<String>>(&mut self, server_address: S) {
+        self.server_address = server_address.into();
+    }
+
+    pub fn serialize(self) -> HashMap<String, String> {
+        let mut data = HashMap::new();
+        data.insert("username".to_string(), self.username);
+        data.insert("password".to_string(), self.password);
+        data.insert("email".to_string(), self.email);
+        data.insert("serveraddress".to_string(), self.server_address);
+        data
+    }
+}

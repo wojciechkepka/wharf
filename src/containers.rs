@@ -1,16 +1,16 @@
 extern crate base64;
-use std::collections::HashMap;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::str;
 use url::Url;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ContainerJson {
     Id: String,
     Names: Vec<String>,
@@ -90,18 +90,30 @@ macro_rules! post_container {
 }
 pub struct Container<'d> {
     docker: &'d Docker,
+    data: Option<ContainerJson>,
+    id: String,
 }
 impl<'d> Container<'d> {
-    /// Interface API for a single container
-    pub fn new(docker: &'d Docker) -> Container {
-        Container { docker }
+    pub fn new<S: Into<String>>(docker: &'d Docker, id: S) -> Container<'d> {
+        Container {
+            docker,
+            data: None,
+            id: id.into(),
+        }
+    }
+    pub fn data(&self) -> Option<ContainerJson> {
+        self.data.clone()
     }
     /// Starts the container
-    pub async fn start(&self, id: &str) -> Result<(), Error> {
+    pub async fn start(&self) -> Result<(), Error> {
         let res = self
             .docker
             .client
-            .post(self.docker.url.join(&format!("containers/{}/start", id))?)
+            .post(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/start", self.id))?,
+            )
             .body("")
             .send()
             .await?;
@@ -117,11 +129,15 @@ impl<'d> Container<'d> {
         }
     }
     /// Stops the container
-    pub async fn stop(&self, id: &str) -> Result<(), Error> {
+    pub async fn stop(&self) -> Result<(), Error> {
         let res = self
             .docker
             .client
-            .post(self.docker.url.join(&format!("containers/{}/stop", id))?)
+            .post(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/stop", self.id))?,
+            )
             .body("")
             .send()
             .await?;
@@ -137,33 +153,43 @@ impl<'d> Container<'d> {
         }
     }
     /// Restarts the container
-    pub async fn restart(&self, id: &str) -> Result<(), Error> {
+    pub async fn restart(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/restart", id),
+            &format!("containers/{}/restart", self.id),
             self
         )?)
     }
     /// Kills the container
-    pub async fn kill(&self, id: &str) -> Result<(), Error> {
-        Ok(post_container!(&format!("containers/{}/kill", id), self)?)
+    pub async fn kill(&self) -> Result<(), Error> {
+        Ok(post_container!(
+            &format!("containers/{}/kill", self.id),
+            self
+        )?)
     }
     /// Unpauses the container
-    pub async fn unpause(&self, id: &str) -> Result<(), Error> {
+    pub async fn unpause(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/unpause", id),
+            &format!("containers/{}/unpause", self.id),
             self
         )?)
     }
     /// Pauses the container
-    pub async fn pause(&self, id: &str) -> Result<(), Error> {
-        Ok(post_container!(&format!("containers/{}/pause", id), self)?)
+    pub async fn pause(&self) -> Result<(), Error> {
+        Ok(post_container!(
+            &format!("containers/{}/pause", self.id),
+            self
+        )?)
     }
     /// Rename container
-    pub async fn rename(&self, id: &str, new_name: &str) -> Result<(), Error> {
+    pub async fn rename(&self, new_name: &str) -> Result<(), Error> {
         let res = self
             .docker
             .client
-            .post(self.docker.url.join(&format!("containers/{}/rename", id))?)
+            .post(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/rename", self.id))?,
+            )
             .query(&[("name", new_name)])
             .send()
             .await?;
@@ -180,11 +206,15 @@ impl<'d> Container<'d> {
         }
     }
     /// Remove a container
-    pub async fn remove(&self, id: &str, opts: RmContainerOpts) -> Result<(), Error> {
+    pub async fn remove(&self, opts: RmContainerOpts) -> Result<(), Error> {
         let res = self
             .docker
             .client
-            .post(self.docker.url.join(&format!("containers/{}/rename", id))?)
+            .post(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/rename", self.id))?,
+            )
             .query(&opts.to_query())
             .send()
             .await?;
@@ -201,11 +231,15 @@ impl<'d> Container<'d> {
         }
     }
     /// Work in progress...
-    pub async fn logs(&self, id: &str, opts: ContainerLogsOpts) -> Result<String, Error> {
+    pub async fn logs(&self, opts: ContainerLogsOpts) -> Result<String, Error> {
         let res = self
             .docker
             .client
-            .get(self.docker.url.join(&format!("containers/{}/logs", id))?)
+            .get(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/logs", self.id))?,
+            )
             .query(&opts.to_query())
             .send()
             .await?;
@@ -222,14 +256,14 @@ impl<'d> Container<'d> {
     }
     /// Get a tar archive of a resource in the filesystem of container id
     /// Returns URL to the archived resource
-    pub async fn archive_path<P: AsRef<Path>>(&self, id: &str, p: P) -> Result<Url, Error> {
+    pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<Url, Error> {
         let res = self
             .docker
             .client
             .get(
                 self.docker
                     .url
-                    .join(&format!("containers/{}/archive", id))?,
+                    .join(&format!("containers/{}/archive", self.id))?,
             )
             .query(&[("path", p.as_ref())])
             .send()
@@ -250,7 +284,6 @@ impl<'d> Container<'d> {
     /// The input file must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz.
     pub async fn upload_archive<P: AsRef<Path>>(
         &self,
-        id: &str,
         path_to_archive: P,
         opts: UploadArchiveOpts,
     ) -> Result<(), Error> {
@@ -260,7 +293,7 @@ impl<'d> Container<'d> {
             .get(
                 self.docker
                     .url
-                    .join(&format!("containers/{}/archive", id))?,
+                    .join(&format!("containers/{}/archive", self.id))?,
             )
             .query(&opts.to_query())
             // #TODO
@@ -285,14 +318,14 @@ impl<'d> Container<'d> {
     }
     /// Get information about files in a container
     /// A response header X-Docker-Container-Path-Stat is return containing a base64 - encoded JSON object with some filesystem header information about the path.
-    pub async fn file_info<P: AsRef<Path>>(&self, id: &str, path: P) -> Result<FileInfo, Error> {
+    pub async fn file_info<P: AsRef<Path>>(&self, path: P) -> Result<FileInfo, Error> {
         let res = self
             .docker
             .client
             .head(
                 self.docker
                     .url
-                    .join(&format!("containers/{}/archive", id))?,
+                    .join(&format!("containers/{}/archive", self.id))?,
             )
             .query(&[("path", path.as_ref().to_str())])
             .send()
@@ -338,7 +371,7 @@ impl<'d> Container<'d> {
             201 => Ok(()),
             400 => Err(format_err!("bad parameter")),
             404 => Err(format_err!("no such container")),
-            _ => { 
+            _ => {
                 let m: Msg = serde_json::from_str(&res.text().await?)?;
                 Err(format_err!("{}", m.msg()))
             }
@@ -363,14 +396,22 @@ impl<'d> Containers<'d> {
     pub fn new(docker: &'d Docker) -> Containers {
         Containers { docker }
     }
-    pub async fn list(&self) -> Result<Vec<ContainerJson>, Error> {
+    pub async fn list(&self) -> Result<Vec<Container<'_>>, Error> {
         let res = self
             .docker
             .client
             .get(self.docker.url.join("containers/json")?)
             .send()
             .await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
+        let docker = self.docker;
+        let data: Vec<ContainerJson> = serde_json::from_str(&res.text().await?)?;
+        Ok(data
+            .iter()
+            .map(|c| Container {
+                docker,
+                data: Some(c.clone()),
+                id: c.Id.clone(),
+            })
+            .collect())
     }
 }

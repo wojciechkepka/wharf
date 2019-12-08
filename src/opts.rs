@@ -169,6 +169,39 @@ pub struct ContainerBuilderOpts {
     HostConfig: Value,
     NetworkConfig: Value,
 }
+impl Query for ContainerBuilderOpts {
+    fn to_query(self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Hostname", self.Hostname),
+            ("Domainname", self.Domainname),
+            ("User", self.User),
+            ("AttachStdin", self.AttachStdin.to_string()),
+            ("AttachStdout", self.AttachStdout.to_string()),
+            ("AttachStderr", self.AttachStderr.to_string()),
+            ("ExposedPorts", self.ExposedPorts.to_string()),
+            ("Tty", self.Tty.to_string()),
+            ("OpenStdin", self.OpenStdin.to_string()),
+            ("StdinOnce", self.StdinOnce.to_string()),
+            ("Env", format!("{:?}", self.Env)),
+            ("Cmd", format!("{:?}", self.Cmd)),
+            ("Healthcheck", self.Healthcheck.to_string()),
+            ("ArgsEscaped", self.ArgsEscaped.to_string()),
+            ("Image", self.Image),
+            ("Volumes", self.Volumes.to_string()),
+            ("WorkingDir", self.WorkingDir),
+            ("Entrypoint", format!("{:?}", self.Entrypoint)),
+            ("NetworkDisabled", self.NetworkDisabled.to_string()),
+            ("MacAddress", self.MacAddress),
+            ("OnBuild", format!("{:?}", self.OnBuild)),
+            ("Lables", self.Lables.to_string()),
+            ("StopSignal", self.StopSignal),
+            ("StopTimeout", self.StopTimeout.to_string()),
+            ("Shell", format!("{:?}", self.Shell)),
+            ("HostConfig", self.HostConfig.to_string()),
+            ("NetworkConfig", self.NetworkConfig.to_string()),
+        ]
+    }
+}
 impl ContainerBuilderOpts {
     pub fn new() -> Self {
         ContainerBuilderOpts::default()
@@ -260,4 +293,9 @@ impl ContainerBuilderOpts {
     pub fn shell(&mut self, s: &[String]) {
         self.Shell = s.to_vec();
     }
+    pub fn exposed_ports(&mut self, _: Value) {}
+    pub fn health_check(&mut self, _: Value) {}
+    pub fn labels(&mut self, _: Value) {}
+    pub fn host_config(&mut self, _: Value) {}
+    pub fn network_config(&mut self, _: Value) {}
 }

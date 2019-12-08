@@ -320,6 +320,28 @@ impl<'d> Container<'d> {
             }
         }
     }
+    /// Create a container
+    pub async fn create(&self, opts: ContainerBuilderOpts) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("containers/create")?)
+            .query(&opts.to_query())
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            204 => Ok(()),
+            404 => Err(format_err!("no such container")),
+            409 => Err(format_err!("name already in use")),
+            500 => Err(format_err!("internal server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+        Ok(())
+    }
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileInfo {

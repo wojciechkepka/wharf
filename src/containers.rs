@@ -1,3 +1,5 @@
+extern crate base64;
+use std::str;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
@@ -237,6 +239,8 @@ impl Container {
         let res = client
             .get(docker.url.join(&format!("containers/{}/archive", id))?)
             .query(&opts.to_query())
+            // #TODO
+            // This is not working
             .body(fs::read_to_string(path_to_archive)?)
             .send()
             .await?;
@@ -255,6 +259,54 @@ impl Container {
             }
         }
     }
+    /// Get information about files in a container
+    /// A response header X-Docker-Container-Path-Stat is return containing a base64 - encoded JSON object with some filesystem header information about the path.
+    pub async fn file_info<P: AsRef<Path>>(
+        docker: &Docker,
+        id: &str,
+        path: P,
+    ) -> Result<FileInfo, Error> {
+        let client = reqwest::Client::new();
+        let res = client
+            .head(docker.url.join(&format!("containers/{}/archive", id))?)
+            .query(&[("path", path.as_ref().to_str())])
+            // #TODO
+            // This is not working
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            200 => {
+                match res.headers().get("X-Docker-Container-Path-Stat") {
+                    Some(data) => {
+                        let data = base64::decode(data)?;
+                        let file_info: FileInfo = serde_json::from_str(str::from_utf8(&data)?)?;
+                        Ok(file_info)
+                    }
+                    None => Err(format_err!("could not parse FileInfo from base64 encoded header")),
+                }
+            }
+            400 => Err(format_err!("bad parameter")),
+            403 => Err(format_err!(
+                "permission denied, the volume or container rootfs is marked as read-only"
+            )),
+            404 => Err(format_err!("container or path does not exist")),
+            500 => Err(format_err!("server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FileInfo {
+    name: String,
+    size: usize,
+    mode: usize,
+    mtime: String,
+    linkTarget: String
 }
 
 /// Api wrapper for containers

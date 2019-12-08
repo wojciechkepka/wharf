@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 #[macro_use]
 extern crate failure;
-pub mod opts;
 pub mod containers;
+pub mod opts;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,7 +48,6 @@ impl Msg {
         self.message
     }
 }
-
 
 pub struct Images {}
 impl Images {

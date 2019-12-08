@@ -1,10 +1,11 @@
 use crate::opts::*;
-use url::Url;
-use failure::Error;
 use crate::{Docker, Msg};
+use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fs;
 use std::path::Path;
+use url::Url;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Container {
@@ -161,11 +162,7 @@ impl Container {
         }
     }
     /// Remove a container
-    pub async fn remove(
-        docker: &Docker,
-        id: &str,
-        opts: RmContainerOpts,
-    ) -> Result<(), Error> {
+    pub async fn remove(docker: &Docker, id: &str, opts: RmContainerOpts) -> Result<(), Error> {
         let client = reqwest::Client::new();
         let res = client
             .post(docker.url.join(&format!("containers/{}/rename", id))?)
@@ -185,11 +182,7 @@ impl Container {
         }
     }
     /// Work in progress...
-    pub async fn logs(
-        docker: &Docker,
-        id: &str,
-        opts: ContainerLogsOpts,
-    ) -> Result<String, Error> {
+    pub async fn logs(docker: &Docker, id: &str, opts: ContainerLogsOpts) -> Result<String, Error> {
         let client = reqwest::Client::new();
         let res = client
             .get(docker.url.join(&format!("containers/{}/logs", id))?)
@@ -209,7 +202,11 @@ impl Container {
     }
     /// Get a tar archive of a resource in the filesystem of container id
     /// Returns URL to the archived resource
-    pub async fn archive_path<P: AsRef<Path>>(docker: &Docker, id: &str, p: P) -> Result<Url, Error> {
+    pub async fn archive_path<P: AsRef<Path>>(
+        docker: &Docker,
+        id: &str,
+        p: P,
+    ) -> Result<Url, Error> {
         let client = reqwest::Client::new();
         let res = client
             .get(docker.url.join(&format!("containers/{}/archive", id))?)
@@ -218,8 +215,38 @@ impl Container {
             .await?;
         let status = res.status().as_u16();
         match status {
-            200 => Ok(res.url()),
+            200 => Ok(res.url().clone()),
             400 => Err(format_err!("bad parameter")),
+            404 => Err(format_err!("container or path does not exist")),
+            500 => Err(format_err!("server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+    /// Upload a tar archive to be extracted to a path in the filesystem of container id.
+    /// The input file must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz.
+    pub async fn upload_archive<P: AsRef<Path>>(
+        docker: &Docker,
+        id: &str,
+        path_to_archive: P,
+        opts: UploadArchiveOpts,
+    ) -> Result<(), Error> {
+        let client = reqwest::Client::new();
+        let res = client
+            .get(docker.url.join(&format!("containers/{}/archive", id))?)
+            .query(&opts.to_query())
+            .body(fs::read_to_string(path_to_archive)?)
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            200 => Ok(()),
+            400 => Err(format_err!("bad parameter")),
+            403 => Err(format_err!(
+                "permission denied, the volume or container rootfs is marked as read-only"
+            )),
             404 => Err(format_err!("container or path does not exist")),
             500 => Err(format_err!("server error")),
             _ => {

@@ -26,7 +26,12 @@ impl<'d> Networks<'d> {
         Networks { docker }
     }
     pub async fn list(&self) -> Result<Vec<Network>, Error> {
-        let res = reqwest::get(docker.url.join("networks")?).await?;
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("networks")?)
+            .send()
+            .await?;
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }

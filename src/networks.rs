@@ -35,4 +35,19 @@ impl<'d> Networks<'d> {
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
+    ///Remove a network
+    pub async fn remove(&self, id: &str) -> Result<(), Error> {
+        let res = self.docker.client.delete(self.docker.url.join(&format!("networks/{}", id))?).send().await?;
+        let status = res.status().as_u16();
+        match status {
+            204 => Ok(()),
+            403 => Err(format_err!("operation not supported for pre-defined networks")),
+            404 => Err(format_err!("no such network")),
+            500 => Err(format_err!("server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
 }

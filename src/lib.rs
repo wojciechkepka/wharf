@@ -9,9 +9,18 @@ use serde_json::Value;
 use url::Url;
 
 pub struct Docker {
+    client: reqwest::Client,
     url: Url,
 }
 
+impl Docker {
+    pub fn new(s: &str) -> Result<Self, Error> {
+        Ok(Docker {
+            url: Url::parse(s)?,
+            client: reqwest::Client::new(),
+        })
+    }
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Network {
     Name: String,
@@ -67,10 +76,3 @@ impl Networks {
     }
 }
 
-impl Docker {
-    pub fn new(s: &str) -> Result<Self, Error> {
-        Ok(Docker {
-            url: Url::parse(s)?,
-        })
-    }
-}

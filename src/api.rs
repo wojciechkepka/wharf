@@ -434,7 +434,7 @@ impl<'d> Container<'d> {
             .post(self.docker.url.join("containers/create")?)
             .query(&[("name", name)])
             .header("Content-type", "application/json")
-            .json(&opts.opts)
+            .json(opts.opts())
             .send()
             .await?;
         let status = res.status().as_u16();

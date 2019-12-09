@@ -115,42 +115,36 @@ impl Query for ContainerLogsOpts {
 impl ContainerLogsOpts {
     pub fn new() -> Self {
         ContainerLogsOpts {
-            follow: false,
-            stdout: false,
-            stderr: false,
-            since: 0,
-            until: 0,
-            timestamps: false,
-            tail: "all".to_string(),
+            opts: HashMap::new(),
         }
     }
     /// Keep connection after returning logs.
     pub fn follow(&mut self, follow: bool) {
-        self.follow = follow;
+        insert!(self, "follow", follow);
     }
     /// Return logs from stdout
     pub fn stdout(&mut self, stdout: bool) {
-        self.stdout = stdout;
+        insert!(self, "stdout", stdout);
     }
     /// Return logs from stderr
     pub fn stderr(&mut self, stderr: bool) {
-        self.stderr = stderr;
+        insert!(self, "stderr", stderr);
     }
     /// Only return logs since this time, as a UNIX timestamp
     pub fn since(&mut self, since: u32) {
-        self.since = since;
+        insert!(self, "since", since);
     }
     /// Only return logs before this time, as a UNIX timestamp
     pub fn until(&mut self, until: u32) {
-        self.until = until;
+        insert!(self, "until", until);
     }
     /// Add timestamps to every log file
     pub fn timestamps(&mut self, timestamps: bool) {
-        self.timestamps = timestamps;
+        insert!(self, "timestamps", timestamps);
     }
     /// Only return this number of log lines from the end of the logs. Specify as an integer or all to output all log lines
     pub fn tail(&mut self, tail: String) {
-        self.tail = tail;
+        insert!(self, "tail", tail);
     }
 }
 
@@ -162,6 +156,10 @@ impl ContainerBuilderOpts {
         ContainerBuilderOpts {
             opts: HashMap::new(),
         }
+    }
+    /// Get opts
+    pub fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
     }
     /// The hostname to use for the container, as a valid RFC 1123 hostname.
     pub fn hostname<S: Into<String> + Serialize>(&mut self, hostname: S) {
@@ -259,15 +257,28 @@ impl ContainerBuilderOpts {
 
 /// Options for creating image
 pub struct CreateImageOpts {
-    fromImage: String,
-    fromSrc: String,
-    repo: String,
-    tag: String,
-    platform: String,
+    opts: HashMap<&'static str, Value>,
 }
 impl Query for CreateImageOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
         vec![]
+    }
+}
+impl CreateImageOpts {
+    pub fn fromImage(&mut self, from_image: &str) {
+        insert!(self, "fromImage", from_image);
+    }
+    pub fn fromSrc(&mut self, from_src: &str) {
+        insert!(self, "fromSrc", from_src);
+    }
+    pub fn repo(&mut self, repo: &str) {
+        insert!(self, "repo", repo);
+    }
+    pub fn tag(&mut self, tag: &str) {
+        insert!(self, "tag", tag);
+    }
+    pub fn platform(&mut self, platform: &str) {
+        insert!(self, "platform", platform);
     }
 }
 

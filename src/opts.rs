@@ -1,3 +1,4 @@
+use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -258,6 +259,7 @@ impl ContainerBuilderOpts {
 /// Options for creating image
 pub struct CreateImageOpts {
     opts: HashMap<&'static str, Value>,
+    auth: AuthOpts,
 }
 impl Query for CreateImageOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
@@ -265,11 +267,16 @@ impl Query for CreateImageOpts {
     }
 }
 impl CreateImageOpts {
-    pub fn fromImage(&mut self, from_image: &str, auth_token: String) {
-        insert!(self, "fromImage", from_image);
-        self.opts.insert("auth", auth_token);
+    pub fn new() -> Self {
+        CreateImageOpts {
+            opts: HashMap::new(),
+            auth: AuthOpts::new(),
+        }
     }
-    pub fn fromSrc(&mut self, from_src: &str) {
+    pub fn from_image(&mut self, from_image: &str) {
+        insert!(self, "fromImage", from_image);
+    }
+    pub fn from_src(&mut self, from_src: &str) {
         insert!(self, "fromSrc", from_src);
     }
     pub fn repo(&mut self, repo: &str) {
@@ -283,6 +290,12 @@ impl CreateImageOpts {
     }
     pub fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
+    }
+    pub fn auth(&mut self) -> &mut AuthOpts {
+        &mut self.auth
+    }
+    pub(crate) fn auth_ref(&self) -> &AuthOpts {
+        &self.auth
     }
 }
 
@@ -311,5 +324,8 @@ impl AuthOpts {
     }
     pub fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
+    }
+    pub fn serialize(&self) -> Result<String, Error> {
+        Ok(base64::encode(&serde_json::to_string(&self.opts)?))
     }
 }

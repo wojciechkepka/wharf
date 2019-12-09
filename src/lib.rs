@@ -78,7 +78,10 @@ struct AuthMsg {
     IdentityToken: String,
 }
 impl AuthMsg {
-    fn msg(self) -> String {
-        self.message
+    fn status(&self) -> String {
+        self.Status.clone()
+    }
+    fn token(&self) -> String {
+        self.IdentityToken.clone()
     }
 }

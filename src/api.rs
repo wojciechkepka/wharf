@@ -594,21 +594,29 @@ impl<'d> Images<'d> {
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
+    /// Create an image by either pulling it from a registry or importing it.
     pub async fn create(&self, opts: CreateImageOpts) -> Result<(), Error> {
         let mut req = self
             .docker
             .client
-            .post(self.docker.url.join("images/json")?);
+            .post(self.docker.url.join("images/create")?);
         let opts_data = opts.opts();
         // if we're pulling from registry we need to authenticate
         if opts_data.get("fromImage").is_some() {
-            // It's ok to unwrap here because auth is always there when fromImage is
-            req.header("X-Registry-Auth", &serde_json::to_string(opts_data.get("auth").unwrap())?);
+            req = req.header("X-Registry-Auth", opts.auth_ref().serialize()?);
         }
-
+        req = req.query(&opts.to_query());
         let res = req.send().await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
+        let status = res.status().as_u16();
+        debug!("{:?}", res);
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(()),
+            404 => err_msg!(text, "repository does not exist or no read access"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 // * Images End *

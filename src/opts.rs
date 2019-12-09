@@ -1,43 +1,49 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+macro_rules! insert {
+    ($s:ident, $k:expr, $v:ident) => {
+        $s.opts.insert($k, serde_json::to_value($v).unwrap());
+    };
+}
+macro_rules! query {
+    ($s:ident) => {
+        $s.opts
+            .iter()
+            .map(|(k, v)| (*k, serde_json::to_string(v).unwrap()))
+            .collect()
+    };
+}
 pub trait Query {
     fn to_query(self) -> Vec<(&'static str, String)>;
 }
 /// Options for Container::upload_archive method
 pub struct UploadArchiveOpts {
-    path: String,
-    no_overwrite: String,
-    copy_uid_gid: String,
+    opts: HashMap<&'static str, Value>,
 }
 impl Query for UploadArchiveOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
-        vec![
-            ("path", self.path),
-            ("noOverwriteDirNonDir", self.no_overwrite),
-            ("copyUIDGID", self.copy_uid_gid),
-        ]
+        query!(self)
     }
 }
 impl UploadArchiveOpts {
     pub fn new() -> Self {
         UploadArchiveOpts {
-            path: "".to_string(),
-            no_overwrite: "".to_string(),
-            copy_uid_gid: "".to_string(),
+            opts: HashMap::new(),
         }
     }
     /// Path to a directory in the container to extract the archive’s contents into.
     pub fn path<T: Into<String> + Serialize>(&mut self, path: T) {
-        self.path = path.into();
+        // It's a valid utf-8 string so its ok to unwrap here
+        insert!(self, "path", path);
     }
     /// If “1”, “true”, or “True” then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa.
     pub fn no_overwrite<T: Into<String> + Serialize>(&mut self, no_overwrite: T) {
-        self.no_overwrite = no_overwrite.into();
+        insert!(self, "noOverwriteDirNonDir", no_overwrite);
     }
     /// If “1”, “true”, then it will copy UID/GID maps to the dest file or dir
     pub fn copy_uid_gid<T: Into<String> + Serialize>(&mut self, copy_uid_gid: T) {
-        self.copy_uid_gid = copy_uid_gid.into();
+        insert!(self, "copyUIDGID", copy_uid_gid);
     }
 }
 /// Options for listing containers
@@ -46,10 +52,7 @@ pub struct ListContainersOpts {
 }
 impl Query for ListContainersOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
-        self.opts
-            .iter()
-            .map(|(k, v)| (*k, serde_json::to_string(v).unwrap()))
-            .collect()
+        query!(self)
     }
 }
 
@@ -60,78 +63,53 @@ impl ListContainersOpts {
         }
     }
     pub fn all(&mut self, all: bool) {
-        self.opts.insert("all", serde_json::to_value(all).unwrap());
+        insert!(self, "all", all);
     }
     pub fn limit(&mut self, limit: usize) {
-        self.opts
-            .insert("limit", serde_json::to_value(limit).unwrap());
+        insert!(self, "limit", limit);
     }
     pub fn size(&mut self, size: bool) {
-        self.opts
-            .insert("size", serde_json::to_value(size).unwrap());
+        insert!(self, "size", size);
     }
     pub fn filters(&mut self, filters: bool) {
-        self.opts
-            .insert("filters", serde_json::to_value(filters).unwrap());
+        insert!(self, "filters", filters);
     }
 }
 /// Options for Container::remove method
 pub struct RmContainerOpts {
-    v: bool,
-    force: bool,
-    link: bool,
+    opts: HashMap<&'static str, Value>,
 }
 impl Query for RmContainerOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
-        vec![
-            ("v", self.v.to_string()),
-            ("force", self.force.to_string()),
-            ("link", self.link.to_string()),
-        ]
+        query!(self)
     }
 }
 impl RmContainerOpts {
     pub fn new() -> Self {
         RmContainerOpts {
-            v: false,
-            force: false,
-            link: false,
+            opts: HashMap::new(),
         }
     }
     /// Remove the volumes associated with the container.
     pub fn volumes(&mut self, v: bool) {
-        self.v = v;
+        insert!(self, "volumes", v);
     }
     /// If the container is running, kill it before removing it.
     pub fn force(&mut self, force: bool) {
-        self.force = force;
+        insert!(self, "force", force);
     }
     /// Remove the specified link associated with the container.
     pub fn link(&mut self, link: bool) {
-        self.link = link;
+        insert!(self, "link", link);
     }
 }
 /// Options for Container::logs method
 pub struct ContainerLogsOpts {
-    follow: bool,
-    stdout: bool,
-    stderr: bool,
-    since: u32,
-    until: u32,
-    timestamps: bool,
-    tail: String,
+    opts: HashMap<&'static str, Value>,
 }
 impl Query for ContainerLogsOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
-        vec![
-            ("follow", self.follow.to_string()),
-            ("stdout", self.stdout.to_string()),
-            ("stderr", self.stderr.to_string()),
-            ("since", self.since.to_string()),
-            ("until", self.until.to_string()),
-            ("timestamps", self.timestamps.to_string()),
-            ("tail", self.tail),
-        ]
+        query!(self)
     }
 }
 impl ContainerLogsOpts {
@@ -176,15 +154,8 @@ impl ContainerLogsOpts {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct ContainerBuilderOpts {
-    pub opts: HashMap<String, Value>,
-}
-macro_rules! insert {
-    ($s:ident, $k:expr, $v:ident) => {
-        $s.opts
-            .insert($k.to_string(), serde_json::to_value($v).unwrap());
-    };
+    opts: HashMap<&'static str, Value>,
 }
 impl ContainerBuilderOpts {
     pub fn new() -> Self {

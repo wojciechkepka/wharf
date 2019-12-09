@@ -1,5 +1,5 @@
 # Wharf ⚓🦀
-Fully asynchronus docker api library written in Rust.
+Fully asynchronous docker api library written in Rust.
 ## Examples
 ```rust
 use failure::Error;
@@ -30,6 +30,7 @@ async fn main() -> Result<(), Error> {
 - [ ] Getting logs from containers
 - [ ] implement all images interface
 - [ ] implement all networks interface
+- [ ] figure out a way to write tests
 ## Currently working api
 - Containers
   - [x] listing

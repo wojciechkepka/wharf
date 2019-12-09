@@ -1,4 +1,4 @@
-# Wharf
+# Wharf ⚓🦀
 Fully asynchronus docker api library written in Rust.
 ## Examples
 ```rust

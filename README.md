@@ -4,6 +4,7 @@ Fully asynchronous docker api library written in Rust.
 ```rust
 use failure::Error;
 use wharf::Docker;
+use wharf::opts::ListContainersOpts;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -11,8 +12,11 @@ async fn main() -> Result<(), Error> {
     let d = Docker::new("http://0.0.0.0:2376")?;
     // get containers api handle from d
     let containers = d.containers();
+    // Create instance of query options
+    let mut opts = ListContainersOpts::new();
+    opts.all(true);
     // iterate over containers
-    for container in containers.list().await? {
+    for container in containers.list(opts).await? {
         // access container metadata
         println!("{:?}", container.data().unwrap());
         // manipulate container
@@ -37,6 +41,7 @@ async fn main() -> Result<(), Error> {
   - [x] starting
   - [x] stopping
   - [x] restarting
+  - [x] inspecting
   - [x] killing
   - [x] unpausing
   - [x] pausing

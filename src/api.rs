@@ -1,4 +1,5 @@
 extern crate base64;
+use log::*;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
@@ -27,7 +28,7 @@ pub struct ContainerJson {
     Image: String,
     ImageID: String,
     Command: String,
-    Created: String,
+    Created: usize,
     State: Value,
     Status: String,
     Ports: Vec<Value>,
@@ -52,8 +53,8 @@ impl ContainerJson {
     pub fn command(&self) -> &str {
         &self.Command
     }
-    pub fn created(&self) -> &str {
-        &self.Created
+    pub fn created(&self) -> usize {
+        self.Created
     }
     pub fn status(&self) -> &str {
         &self.Status
@@ -480,6 +481,7 @@ impl<'d> Containers<'d> {
     pub fn new(docker: &'d Docker) -> Containers {
         Containers { docker }
     }
+    /// List all containers
     pub async fn list(&self, opts: ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
         let res = self
             .docker
@@ -489,8 +491,11 @@ impl<'d> Containers<'d> {
             .send()
             .await?;
         let docker = self.docker;
+        debug!("{:?}", res);
         let text = res.text().await?;
+        debug!("{}", text);
         let data: Vec<ContainerJson> = serde_json::from_str(&text)?;
+        debug!("{:?}", data);
         Ok(data
             .iter()
             .map(|c| Container {
@@ -578,6 +583,7 @@ impl<'d> Images<'d> {
     pub fn new(docker: &'d Docker) -> Self {
         Images { docker }
     }
+    /// List all images
     pub async fn list(&self) -> Result<Vec<ImagesJson>, Error> {
         let res = self
             .docker

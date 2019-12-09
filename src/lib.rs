@@ -3,6 +3,7 @@
 extern crate failure;
 pub mod api;
 pub mod opts;
+use log::*;
 use crate::api::{Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;
@@ -37,8 +38,25 @@ impl Docker {
         Networks::new(&self)
     }
 
-    pub fn auth_token(&self, opts: AuthOpts) -> String {
-        unimplemented!()
+    /// Get auth token for authorized operations
+    pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
+        let res = self
+            .client
+            .post(self.url.join("/auth")?)
+            .json(opts.opts())
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(text),
+            204 => Ok("".to_string()),
+            500 => Err(format_err!("server error")),
+            _ => Err(format_err!("{}", text))
+        }
+        
     }
 }
 

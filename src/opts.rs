@@ -261,7 +261,7 @@ pub struct CreateImageOpts {
 }
 impl Query for CreateImageOpts {
     fn to_query(self) -> Vec<(&'static str, String)> {
-        vec![]
+        query!(self)
     }
 }
 impl CreateImageOpts {
@@ -283,37 +283,29 @@ impl CreateImageOpts {
 }
 
 /// Options for authentication
-#[derive(Default)]
 pub struct AuthOpts {
-    username: String,
-    password: String,
-    email: String,
-    server_address: String,
+    opts: HashMap<&'static str, Value>,
 }
 
 impl AuthOpts {
     pub fn new() -> Self {
-        AuthOpts::default()
+        AuthOpts {
+            opts: HashMap::new(),
+        }
     }
-    pub fn username<S: Into<String>>(&mut self, username: S) {
-        self.username = username.into();
+    pub fn username(&mut self, username: &str) {
+        insert!(self, "username", username);
     }
-    pub fn password<S: Into<String>>(&mut self, password: S) {
-        self.password = password.into();
+    pub fn password(&mut self, password: &str) {
+        insert!(self, "password", password);
     }
-    pub fn email<S: Into<String>>(&mut self, email: S) {
-        self.email = email.into();
+    pub fn email(&mut self, email: &str) {
+        insert!(self, "email", email);
     }
-    pub fn server_address<S: Into<String>>(&mut self, server_address: S) {
-        self.server_address = server_address.into();
+    pub fn server_address(&mut self, server_address: &str) {
+        insert!(self, "serveraddress", server_address);
     }
-
-    pub fn serialize(self) -> HashMap<String, String> {
-        let mut data = HashMap::new();
-        data.insert("username".to_string(), self.username);
-        data.insert("password".to_string(), self.password);
-        data.insert("email".to_string(), self.email);
-        data.insert("serveraddress".to_string(), self.server_address);
-        data
+    pub fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
     }
 }

@@ -10,6 +10,15 @@ use std::path::Path;
 use std::str;
 use url::Url;
 
+macro_rules! err_msg {
+    ($t: ident, $e: expr) => {
+        match serde_json::from_str::<Msg>(&$t) {
+            Ok(m) => Err(format_err!("{} - {}", $e, m.msg())),
+            _ => Err(format_err!("{}", $e)),
+        }
+    };
+}
+
 // * Containers start *
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ContainerJson {
@@ -154,15 +163,14 @@ impl<'d> Container<'d> {
             .body("")
             .send()
             .await?;
-        match res.status().as_u16() {
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        match status {
             204 => Ok(()),
-            304 => Err(format_err!("container already started")),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            304 => err_msg!(text, "container already started"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Stops the container
@@ -178,15 +186,14 @@ impl<'d> Container<'d> {
             .body("")
             .send()
             .await?;
-        match res.status().as_u16() {
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        match status {
             204 => Ok(()),
-            304 => Err(format_err!("container already stopped")),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            304 => err_msg!(text, "container already stopped"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Inspect a container
@@ -209,12 +216,9 @@ impl<'d> Container<'d> {
                 let data: InspectContainerResponse = serde_json::from_str(&text)?;
                 Ok(data)
             }
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&text)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Restarts the container
@@ -259,15 +263,13 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            409 => Err(format_err!("name already in use")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "name already in use"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Remove a container
@@ -284,15 +286,13 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            409 => Err(format_err!("name already in use")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "name already in use"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Work in progress...
@@ -308,15 +308,13 @@ impl<'d> Container<'d> {
             .query(&opts.to_query())
             .send()
             .await?;
-        match res.status().as_u16() {
-            200 => Ok(res.text().await?),
-            204 => Ok(res.text().await?),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        match status {
+            200 => Ok(text),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Get a tar archive of a resource in the filesystem of container id
@@ -334,15 +332,14 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let url = res.url().clone();
+        let text = res.text().await?;
         match status {
-            200 => Ok(res.url().clone()),
-            400 => Err(format_err!("bad parameter")),
-            404 => Err(format_err!("container or path does not exist")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            200 => Ok(url),
+            400 => err_msg!(text, "container or path does not exist"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Upload a tar archive to be extracted to a path in the filesystem of container id.
@@ -367,18 +364,14 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             200 => Ok(()),
-            400 => Err(format_err!("bad parameter")),
-            403 => Err(format_err!(
-                "permission denied, the volume or container rootfs is marked as read-only"
-            )),
-            404 => Err(format_err!("container or path does not exist")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            400 => err_msg!(text, "container or path does not exist"),
+            403 => err_msg!(text, "permission denied, the volume or container rootfs is marked as read-only"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
     /// Get information about files in a container
@@ -407,15 +400,14 @@ impl<'d> Container<'d> {
                     "could not parse FileInfo from base64 encoded header"
                 )),
             },
-            400 => Err(format_err!("bad parameter")),
-            403 => Err(format_err!(
-                "permission denied, the volume or container rootfs is marked as read-only"
-            )),
-            404 => Err(format_err!("container or path does not exist")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
+            other => {
+                let text = res.text().await?;
+                match other {
+                    400 => err_msg!(text, "bad parameter"),
+                    404 => err_msg!(text, "container or path does not exist"),
+                    500 => err_msg!(text, "server error"),
+                    _ => err_msg!(text, ""),
+                }
             }
         }
     }
@@ -431,14 +423,12 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
-            201 => Ok(()),
-            400 => Err(format_err!("bad parameter")),
-            404 => Err(format_err!("no such container")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            200 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
+            404 => err_msg!(text, "no such container"),
+            _ => err_msg!(text, ""),
         }
     }
     /// List processes running inside a container
@@ -456,21 +446,19 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             200 => {
-                let data: ContainerProcessesJson = serde_json::from_str(&res.text().await?)?;
+                let data: ContainerProcessesJson = serde_json::from_str(&text)?;
                 Ok(data
                     .Processes
                     .iter()
                     .map(|p| Process::new(&data.Titles, &p))
                     .collect())
             }
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
 }
@@ -556,17 +544,13 @@ impl<'d> Networks<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             204 => Ok(()),
-            403 => Err(format_err!(
-                "operation not supported for pre-defined networks"
-            )),
-            404 => Err(format_err!("no such network")),
-            500 => Err(format_err!("server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            403 => err_msg!(text, "operation not supported for pre-defined networks"),
+            404 => err_msg!(text, "no such network"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
         }
     }
 }

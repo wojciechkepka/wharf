@@ -1,8 +1,8 @@
 extern crate base64;
-use log::*;
 use crate::opts::*;
 use crate::{Docker, Msg};
 use failure::Error;
+use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -369,7 +369,10 @@ impl<'d> Container<'d> {
         match status {
             200 => Ok(()),
             400 => err_msg!(text, "container or path does not exist"),
-            403 => err_msg!(text, "permission denied, the volume or container rootfs is marked as read-only"),
+            403 => err_msg!(
+                text,
+                "permission denied, the volume or container rootfs is marked as read-only"
+            ),
             404 => err_msg!(text, "no such container"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),

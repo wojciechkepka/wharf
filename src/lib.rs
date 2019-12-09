@@ -3,10 +3,10 @@
 extern crate failure;
 pub mod api;
 pub mod opts;
-use log::*;
 use crate::api::{Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;
+use log::*;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -53,13 +53,12 @@ impl Docker {
         match status {
             200 => {
                 let msg: AuthMsg = serde_json::from_str(&text)?;
-                Ok(msg.IdentityToken)
+                Ok(msg.token())
             }
             204 => Ok("".to_string()),
             500 => Err(format_err!("server error")),
-            _ => Err(format_err!("{}", text))
+            _ => Err(format_err!("{}", text)),
         }
-        
     }
 }
 

@@ -598,14 +598,13 @@ impl<'d> Images<'d> {
         Ok(serde_json::from_str(&body)?)
     }
     /// Create an image by either pulling it from a registry or importing it.
-    pub async fn create(&self, opts: CreateImageOpts) -> Result<(), Error> {
+    pub async fn create(&self, opts: &CreateImageOpts) -> Result<(), Error> {
         let mut req = self
             .docker
             .client
             .post(self.docker.url.join("images/create")?);
-        let opts_data = opts.opts();
         // if we're pulling from registry we need to authenticate
-        if opts_data.get("fromImage").is_some() {
+        if opts.opts().get("fromImage").is_some() {
             req = req.header("X-Registry-Auth", opts.auth_ref().serialize()?);
         }
         req = req.query(&opts.to_query());

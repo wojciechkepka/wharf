@@ -27,7 +27,7 @@ impl Docker {
     }
     /// Get reference to a specific container interface
     pub fn container(&self, id: &str) -> Container {
-       Container::new(&self, id)
+        Container::new(&self, id)
     }
     /// Get reference to api interface of containers
     pub fn containers(&self) -> Containers {

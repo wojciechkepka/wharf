@@ -1,13 +1,10 @@
 #![allow(non_snake_case)]
 #[macro_use]
 extern crate failure;
-pub mod containers;
-pub mod images;
-pub mod networks;
+pub mod api;
 pub mod opts;
-use crate::containers::Containers;
-use crate::images::Images;
-use crate::networks::Networks;
+use crate::api::{Containers, Images, Networks};
+use crate::opts::*;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -38,7 +35,7 @@ impl Docker {
     }
 
     pub fn auth_token(&self, opts: AuthOpts) -> String {
-        self.client.post(self.url.join("/auth")?)
+        unimplemented!()
     }
 }
 

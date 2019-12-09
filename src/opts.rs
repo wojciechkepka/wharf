@@ -40,6 +40,41 @@ impl UploadArchiveOpts {
         self.copy_uid_gid = copy_uid_gid.into();
     }
 }
+/// Options for listing containers
+pub struct ListContainersOpts {
+    opts: HashMap<&'static str, Value>,
+}
+impl Query for ListContainersOpts {
+    fn to_query(self) -> Vec<(&'static str, String)> {
+        self.opts
+            .iter()
+            .map(|(k, v)| (*k, serde_json::to_string(v).unwrap()))
+            .collect()
+    }
+}
+
+impl ListContainersOpts {
+    pub fn new() -> Self {
+        ListContainersOpts {
+            opts: HashMap::new(),
+        }
+    }
+    pub fn all(&mut self, all: bool) {
+        self.opts.insert("all", serde_json::to_value(all).unwrap());
+    }
+    pub fn limit(&mut self, limit: usize) {
+        self.opts
+            .insert("limit", serde_json::to_value(limit).unwrap());
+    }
+    pub fn size(&mut self, size: bool) {
+        self.opts
+            .insert("size", serde_json::to_value(size).unwrap());
+    }
+    pub fn filters(&mut self, filters: bool) {
+        self.opts
+            .insert("filters", serde_json::to_value(filters).unwrap());
+    }
+}
 /// Options for Container::remove method
 pub struct RmContainerOpts {
     v: bool,

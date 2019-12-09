@@ -10,6 +10,7 @@ use std::path::Path;
 use std::str;
 use url::Url;
 
+// * Containers start *
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ContainerJson {
     Id: String,
@@ -86,6 +87,29 @@ impl Process {
                 .collect(),
         }
     }
+}
+#[derive(Deserialize, Debug, Serialize)]
+pub struct InspectContainerResponse {
+    AppArmorProfile: String,
+    Args: Vec<String>,
+    Config: Value,
+    Created: String,
+    Driver: String,
+    ExecIDs: Vec<String>,
+    HostConfig: Value,
+    HostnamePath: String,
+    HostsPath: String,
+    LogPath: String,
+    Id: String,
+    MountLabel: String,
+    Name: String,
+    NetworkSettings: Value,
+    Path: String,
+    ProcessLabel: String,
+    ResolvConfPath: String,
+    RestartCount: usize,
+    State: Value,
+    Mounts: Vec<Value>,
 }
 
 macro_rules! post_container {
@@ -166,6 +190,34 @@ impl<'d> Container<'d> {
             304 => Err(format_err!("container already stopped")),
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("internal server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+    /// Inspect a container
+    /// Return low-level information about a container.
+    pub async fn inspect(&self) -> Result<InspectContainerResponse, Error> {
+        let res = self
+            .docker
+            .client
+            .get(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/json", self.id))?,
+            )
+            .query(&[("id", &self.id)])
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            200 => {
+                let data: InspectContainerResponse = serde_json::from_str(&res.text().await?)?;
+                Ok(data)
+            }
+            404 => Err(format_err!("no such container")),
+            500 => Err(format_err!("server error")),
             _ => {
                 let m: Msg = serde_json::from_str(&res.text().await?)?;
                 Err(format_err!("{}", m.msg()))
@@ -448,15 +500,18 @@ impl<'d> Containers<'d> {
     pub fn new(docker: &'d Docker) -> Containers {
         Containers { docker }
     }
-    pub async fn list(&self) -> Result<Vec<Container<'_>>, Error> {
+    pub async fn list(&self, opts: ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
         let res = self
             .docker
             .client
             .get(self.docker.url.join("containers/json")?)
+            .query(&opts.to_query())
             .send()
             .await?;
         let docker = self.docker;
-        let data: Vec<ContainerJson> = serde_json::from_str(&res.text().await?)?;
+        let text = res.text().await?;
+        let data: Vec<ContainerJson> = serde_json::from_str(&text)?;
+        println!("{:?}", text);
         Ok(data
             .iter()
             .map(|c| Container {
@@ -467,3 +522,97 @@ impl<'d> Containers<'d> {
             .collect())
     }
 }
+// * Containers end *
+
+// * Networks start *
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Network {
+    Name: String,
+    Id: String,
+    Created: String,
+    Scope: String,
+    Driver: String,
+    EnableIPv6: bool,
+    Internal: bool,
+    Attachable: bool,
+    Ingress: bool,
+    IPAM: Value,
+    Options: Value,
+}
+
+pub struct Networks<'d> {
+    docker: &'d Docker,
+}
+impl<'d> Networks<'d> {
+    pub fn new(docker: &'d Docker) -> Networks {
+        Networks { docker }
+    }
+    pub async fn list(&self) -> Result<Vec<Network>, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("networks")?)
+            .send()
+            .await?;
+        let body = res.text().await?;
+        Ok(serde_json::from_str(&body)?)
+    }
+    ///Remove a network
+    pub async fn remove(&self, id: &str) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .delete(self.docker.url.join(&format!("networks/{}", id))?)
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            204 => Ok(()),
+            403 => Err(format_err!(
+                "operation not supported for pre-defined networks"
+            )),
+            404 => Err(format_err!("no such network")),
+            500 => Err(format_err!("server error")),
+            _ => {
+                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                Err(format_err!("{}", m.msg()))
+            }
+        }
+    }
+}
+// * Networks end *
+
+// * Images start *
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImagesJson {
+    Id: String,
+    ParentId: String,
+    RepoTags: Vec<String>,
+    RepoDigests: Vec<String>,
+    Created: u64,
+    Size: isize,
+    VirtualSize: isize,
+    SharedSize: isize,
+    Labels: Value,
+    Containers: isize,
+}
+
+pub struct Images<'d> {
+    docker: &'d Docker,
+}
+impl<'d> Images<'d> {
+    pub fn new(docker: &'d Docker) -> Self {
+        Images { docker }
+    }
+    pub async fn list(&self) -> Result<Vec<ImagesJson>, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("images/json")?)
+            .send()
+            .await?;
+        let body = res.text().await?;
+        Ok(serde_json::from_str(&body)?)
+    }
+}
+// * Images End *

@@ -3,7 +3,7 @@
 extern crate failure;
 pub mod api;
 pub mod opts;
-use crate::api::{Containers, Images, Networks};
+use crate::api::{Container, Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;
 use log::*;
@@ -24,6 +24,10 @@ impl Docker {
             url: Url::parse(s)?,
             client: c.no_proxy().build()?,
         })
+    }
+    /// Get reference to a specific container interface
+    pub fn container(&self, id: &str) -> Container {
+       Container::new(&self, id)
     }
     /// Get reference to api interface of containers
     pub fn containers(&self) -> Containers {

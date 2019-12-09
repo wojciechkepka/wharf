@@ -11,15 +11,15 @@ use std::str;
 use url::Url;
 
 // * Containers start *
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ContainerJson {
     Id: String,
     Names: Vec<String>,
     Image: String,
     ImageID: String,
     Command: String,
-    Created: u32,
-    State: String,
+    Created: String,
+    State: Value,
     Status: String,
     Ports: Vec<Value>,
     Labels: Value,
@@ -43,11 +43,8 @@ impl ContainerJson {
     pub fn command(&self) -> &str {
         &self.Command
     }
-    pub fn created(&self) -> u32 {
-        self.Created
-    }
-    pub fn state(&self) -> &str {
-        &self.State
+    pub fn created(&self) -> &str {
+        &self.Created
     }
     pub fn status(&self) -> &str {
         &self.Status
@@ -91,11 +88,11 @@ impl Process {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct InspectContainerResponse {
     AppArmorProfile: String,
-    Args: Vec<String>,
+    Args: Value,
     Config: Value,
     Created: String,
     Driver: String,
-    ExecIDs: Vec<String>,
+    ExecIDs: Value,
     HostConfig: Value,
     HostnamePath: String,
     HostsPath: String,
@@ -132,21 +129,17 @@ macro_rules! post_container {
         }
     }};
 }
+#[derive(Debug)]
 pub struct Container<'d> {
     docker: &'d Docker,
-    data: Option<ContainerJson>,
     id: String,
 }
 impl<'d> Container<'d> {
     pub fn new<S: Into<String>>(docker: &'d Docker, id: S) -> Container<'d> {
         Container {
             docker,
-            data: None,
             id: id.into(),
         }
-    }
-    pub fn data(&self) -> Option<ContainerJson> {
-        self.data.clone()
     }
     /// Starts the container
     pub async fn start(&self) -> Result<(), Error> {
@@ -207,19 +200,19 @@ impl<'d> Container<'d> {
                     .url
                     .join(&format!("containers/{}/json", self.id))?,
             )
-            .query(&[("id", &self.id)])
             .send()
             .await?;
         let status = res.status().as_u16();
+        let text = res.text().await?;
         match status {
             200 => {
-                let data: InspectContainerResponse = serde_json::from_str(&res.text().await?)?;
+                let data: InspectContainerResponse = serde_json::from_str(&text)?;
                 Ok(data)
             }
             404 => Err(format_err!("no such container")),
             500 => Err(format_err!("server error")),
             _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
+                let m: Msg = serde_json::from_str(&text)?;
                 Err(format_err!("{}", m.msg()))
             }
         }
@@ -438,7 +431,6 @@ impl<'d> Container<'d> {
             .send()
             .await?;
         let status = res.status().as_u16();
-        println!("{:?}", res);
         match status {
             201 => Ok(()),
             400 => Err(format_err!("bad parameter")),
@@ -511,12 +503,10 @@ impl<'d> Containers<'d> {
         let docker = self.docker;
         let text = res.text().await?;
         let data: Vec<ContainerJson> = serde_json::from_str(&text)?;
-        println!("{:?}", text);
         Ok(data
             .iter()
             .map(|c| Container {
                 docker,
-                data: Some(c.clone()),
                 id: c.Id.clone(),
             })
             .collect())

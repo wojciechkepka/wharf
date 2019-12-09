@@ -9,6 +9,7 @@ use failure::Error;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+#[derive(Debug)]
 pub struct Docker {
     client: reqwest::Client,
     url: Url,
@@ -16,9 +17,11 @@ pub struct Docker {
 
 impl Docker {
     pub fn new(s: &str) -> Result<Self, Error> {
+        let c = reqwest::ClientBuilder::new();
+
         Ok(Docker {
             url: Url::parse(s)?,
-            client: reqwest::Client::new(),
+            client: c.no_proxy().build()?,
         })
     }
     /// Get reference to api interface of containers

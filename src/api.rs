@@ -274,7 +274,7 @@ impl<'d> Container<'d> {
         }
     }
     /// Remove a container
-    pub async fn remove(&self, opts: RmContainerOpts) -> Result<(), Error> {
+    pub async fn remove(&self, opts: &RmContainerOpts) -> Result<(), Error> {
         let res = self
             .docker
             .client
@@ -297,7 +297,7 @@ impl<'d> Container<'d> {
         }
     }
     /// Work in progress...
-    pub async fn logs(&self, opts: ContainerLogsOpts) -> Result<String, Error> {
+    pub async fn logs(&self, opts: &ContainerLogsOpts) -> Result<String, Error> {
         let res = self
             .docker
             .client
@@ -348,7 +348,7 @@ impl<'d> Container<'d> {
     pub async fn upload_archive<P: AsRef<Path>>(
         &self,
         path_to_archive: P,
-        opts: UploadArchiveOpts,
+        opts: &UploadArchiveOpts,
     ) -> Result<(), Error> {
         let res = self
             .docker
@@ -416,7 +416,7 @@ impl<'d> Container<'d> {
         }
     }
     /// Create a container
-    pub async fn create(&self, name: &str, opts: ContainerBuilderOpts) -> Result<(), Error> {
+    pub async fn create(&self, name: &str, opts: &ContainerBuilderOpts) -> Result<(), Error> {
         let res = self
             .docker
             .client
@@ -485,7 +485,7 @@ impl<'d> Containers<'d> {
         Containers { docker }
     }
     /// List all containers
-    pub async fn list(&self, opts: ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
+    pub async fn list(&self, opts: &ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
         let res = self
             .docker
             .client

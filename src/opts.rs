@@ -265,8 +265,9 @@ impl Query for CreateImageOpts {
     }
 }
 impl CreateImageOpts {
-    pub fn fromImage(&mut self, from_image: &str) {
+    pub fn fromImage(&mut self, from_image: &str, auth_token: String) {
         insert!(self, "fromImage", from_image);
+        self.opts.insert("auth", auth_token);
     }
     pub fn fromSrc(&mut self, from_src: &str) {
         insert!(self, "fromSrc", from_src);
@@ -279,6 +280,9 @@ impl CreateImageOpts {
     }
     pub fn platform(&mut self, platform: &str) {
         insert!(self, "platform", platform);
+    }
+    pub fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
     }
 }
 

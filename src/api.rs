@@ -594,5 +594,21 @@ impl<'d> Images<'d> {
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
+    pub async fn create(&self, opts: CreateImageOpts) -> Result<(), Error> {
+        let mut req = self
+            .docker
+            .client
+            .post(self.docker.url.join("images/json")?);
+        let opts_data = opts.opts();
+        // if we're pulling from registry we need to authenticate
+        if opts_data.get("fromImage").is_some() {
+            // It's ok to unwrap here because auth is always there when fromImage is
+            req.header("X-Registry-Auth", &serde_json::to_string(opts_data.get("auth").unwrap())?);
+        }
+
+        let res = req.send().await?;
+        let body = res.text().await?;
+        Ok(serde_json::from_str(&body)?)
+    }
 }
 // * Images End *

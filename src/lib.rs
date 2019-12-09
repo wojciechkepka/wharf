@@ -51,7 +51,10 @@ impl Docker {
         let text = res.text().await?;
         debug!("{}", text);
         match status {
-            200 => Ok(text),
+            200 => {
+                let msg: AuthMsg = serde_json::from_str(&text)?;
+                Ok(msg.IdentityToken)
+            }
             204 => Ok("".to_string()),
             500 => Err(format_err!("server error")),
             _ => Err(format_err!("{}", text))
@@ -65,6 +68,16 @@ struct Msg {
     message: String,
 }
 impl Msg {
+    fn msg(self) -> String {
+        self.message
+    }
+}
+#[derive(Serialize, Deserialize)]
+struct AuthMsg {
+    Status: String,
+    IdentityToken: String,
+}
+impl AuthMsg {
     fn msg(self) -> String {
         self.message
     }

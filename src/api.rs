@@ -443,6 +443,37 @@ impl<'d> Container<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Attach to a container
+    pub async fn attach(&self) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .post(
+                self.docker
+                    .url
+                    .join(&format!("containers/{}/attach", self.id))?,
+            )
+            .header("Connection", "Upgrade")
+            .header("Upgrade", "tcp")
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        match status {
+            101 => {
+                // The response body is a stream 
+                // #TODO
+                // implement a stream reader for:
+                // - https://docs.docker.com/engine/api/v1.40/#operation/ContainerAttach
+                Ok(())
+            }
+            200 => Ok(()),
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "name already in use"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileInfo {

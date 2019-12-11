@@ -345,23 +345,21 @@ impl<'d> Container<'d> {
     }
     /// Upload a tar archive to be extracted to a path in the filesystem of container id.
     /// The input file must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz.
-    pub async fn upload_archive<P: AsRef<Path>>(
+    pub async fn upload_archive(
         &self,
-        path_to_archive: P,
+        archive: &[u8],
         opts: &UploadArchiveOpts,
     ) -> Result<(), Error> {
         let res = self
             .docker
             .client
-            .get(
+            .put(
                 self.docker
                     .url
                     .join(&format!("containers/{}/archive", self.id))?,
             )
             .query(&opts.to_query())
-            // #TODO
-            // This is not working
-            .body(fs::read_to_string(path_to_archive)?)
+            .body(archive.to_vec())
             .send()
             .await?;
         let status = res.status().as_u16();
@@ -413,26 +411,6 @@ impl<'d> Container<'d> {
                     _ => err_msg!(text, ""),
                 }
             }
-        }
-    }
-    /// Create a container
-    pub async fn create(&self, name: &str, opts: &ContainerBuilderOpts) -> Result<(), Error> {
-        let res = self
-            .docker
-            .client
-            .post(self.docker.url.join("containers/create")?)
-            .query(&[("name", name)])
-            .header("Content-type", "application/json")
-            .json(opts.opts())
-            .send()
-            .await?;
-        let status = res.status().as_u16();
-        let text = res.text().await?;
-        match status {
-            200 => Ok(()),
-            400 => err_msg!(text, "bad parameter"),
-            404 => err_msg!(text, "no such container"),
-            _ => err_msg!(text, ""),
         }
     }
     /// List processes running inside a container
@@ -506,6 +484,28 @@ impl<'d> Containers<'d> {
                 id: c.Id.clone(),
             })
             .collect())
+    }
+    /// Create a container
+    pub async fn create(&self, name: &str, opts: &ContainerBuilderOpts) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("containers/create")?)
+            .query(&[("name", name)])
+            .header("Content-type", "application/json")
+            .json(opts.opts())
+            .send()
+            .await?;
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        match status {
+            201 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 // * Containers end *

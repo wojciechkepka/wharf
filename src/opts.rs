@@ -226,12 +226,12 @@ impl ContainerBuilderOpts {
     }
     /// A list of environment variables to set inside the container in the form ["VAR=value", ...].
     /// A variable without = is removed from the environment, rather than to have an empty value.
-    pub fn Env(&mut self, env: &[String]) -> &mut Self {
+    pub fn env(&mut self, env: &[String]) -> &mut Self {
         insert!(self, "Env", env);
         self
     }
     /// Command to run specified as a string or an array of strings.
-    pub fn Cmd(&mut self, cmd: &[String]) -> &mut Self {
+    pub fn cmd(&mut self, cmd: &[String]) -> &mut Self {
         insert!(self, "Cmd", cmd);
         self
     }

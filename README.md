@@ -4,7 +4,7 @@ Fully asynchronous docker api library written in Rust.
 ```rust
 use failure::Error;
 use wharf::Docker;
-use wharf::opts::ListContainersOpts;
+use wharf::opts::{ContainerBuilderOpts, ListContainersOpts};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -24,12 +24,22 @@ async fn main() -> Result<(), Error> {
         container.start().await?;
         container.rename("alpine1").await?;
     }
+    // Create a container
+    let mut container_opts = ContainerBuilderOpts::new();
+    container_opts
+	.image("ubuntu")
+	.cmd(&["/bin/echo".into(), "hello".into()])
+	.env(&["HTTPS_PROXY=proxy.domain.com:1337"]);
+
+    containers.create("jimmy-falcon", &container_opts).await?;
+
+
     Ok(())
 }
 ```
 ## Current TODO
 - [ ] fix uploading archives to containers
-- [ ] Creating containers
+- [x] Creating containers
 - [ ] Attaching to containers
 - [ ] Getting logs from containers
 - [ ] implement all images interface
@@ -49,7 +59,7 @@ async fn main() -> Result<(), Error> {
   - [x] archiving path
   - [x] file info
   - [x] ps
-  - [ ] create
+  - [x] create
   - [ ] uploading archives
   - [ ] logs
   - [ ] attaching

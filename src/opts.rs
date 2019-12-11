@@ -318,6 +318,18 @@ impl ContainerBuilderOpts {
         insert!(self, "Labels", labels);
         self
     }
+    /// Memory limit in bytes
+    pub fn memory(&mut self, limit: i64) -> &mut Self {
+        insert!(self, "HostConfig.Memory", limit);
+        self
+    }
+    /// Network mode to use for this container.
+    /// Supported standard values are: bridge, host, none, and container:<name|id>.
+    /// Any other value is taken as a custom network's name to which this container should connect to.
+    pub fn network_mode(&mut self, mode: &str) -> &mut Self {
+        insert!(self, "HostConfig.NetworkMode", mode);
+        self
+    }
 }
 
 /// Options for creating image

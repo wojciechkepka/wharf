@@ -1,4 +1,5 @@
 use failure::Error;
+use log::*;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -287,11 +288,36 @@ impl ContainerBuilderOpts {
         insert!(self, "Shell", s);
         self
     }
-    pub fn exposed_ports(&mut self, _: Value) {}
-    pub fn health_check(&mut self, _: Value) {}
-    pub fn labels(&mut self, _: Value) {}
-    pub fn host_config(&mut self, _: Value) {}
-    pub fn network_config(&mut self, _: Value) {}
+    /// A list of string in the form:
+    /// "port/<tcp|udp|sctp>"
+    pub fn exposed_ports(&mut self, ports: &[String]) -> &mut Self {
+        let exposed_ports: HashMap<&str, Value> = ports
+            .iter()
+            .map(|port| (&port[..], Value::default()))
+            .collect();
+        debug!("{:?}", exposed_ports);
+        //TODO
+        //figure out what's the difference
+        //insert!(self, "ExposedPorts", exposed_ports);
+        insert!(self, "HostConfig.PortBindings", exposed_ports);
+        self
+    }
+    /// A list of mounts in the container in the form:
+    /// "/host/path:/container/path"
+    pub fn volumes<S: AsRef<str>>(&mut self, mounts: &[S]) -> &mut Self {
+        let volumes: HashMap<&str, Value> = mounts
+            .iter()
+            .map(|m| (m.as_ref(), Value::default()))
+            .collect();
+        debug!("{:?}", volumes);
+        insert!(self, "HostConfig.Binds", volumes);
+        self
+    }
+    /// User-defined key/value metadata.
+    pub fn labels(&mut self, labels: &HashMap<&str, &str>) -> &mut Self {
+        insert!(self, "Labels", labels);
+        self
+    }
 }
 
 /// Options for creating image

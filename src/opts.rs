@@ -290,10 +290,10 @@ impl ContainerBuilderOpts {
     }
     /// A list of string in the form:
     /// "port/<tcp|udp|sctp>"
-    pub fn exposed_ports(&mut self, ports: &[String]) -> &mut Self {
+    pub fn exposed_ports<S: AsRef<str>>(&mut self, ports: &[S]) -> &mut Self {
         let exposed_ports: HashMap<&str, Value> = ports
             .iter()
-            .map(|port| (&port[..], Value::default()))
+            .map(|port| (port.as_ref(), Value::default()))
             .collect();
         debug!("{:?}", exposed_ports);
         //TODO

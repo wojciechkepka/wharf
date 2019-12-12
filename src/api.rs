@@ -88,8 +88,8 @@ impl Process {
         Process {
             info: titles
                 .iter()
-                .map(|t| t.clone())
-                .zip(processes.iter().map(|p| p.clone()))
+                .cloned()
+                .zip(processes.iter().cloned())
                 .collect(),
         }
     }

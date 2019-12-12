@@ -9,14 +9,13 @@ macro_rules! insert {
     };
 }
 /// Options for Container::upload_archive method
+#[derive(Default)]
 pub struct UploadArchiveOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl UploadArchiveOpts {
     pub fn new() -> Self {
-        UploadArchiveOpts {
-            opts: HashMap::new(),
-        }
+        UploadArchiveOpts::default()
     }
     /// Path to a directory in the container to extract the archive’s contents into.
     pub fn path(&mut self, path: &str) -> &mut Self {
@@ -39,14 +38,13 @@ impl UploadArchiveOpts {
     }
 }
 /// Options for listing containers
+#[derive(Default)]
 pub struct ListContainersOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl ListContainersOpts {
     pub fn new() -> Self {
-        ListContainersOpts {
-            opts: HashMap::new(),
-        }
+        ListContainersOpts::default()
     }
     pub fn all(&mut self, all: bool) -> &mut Self {
         insert!(self, "all", all);
@@ -69,14 +67,13 @@ impl ListContainersOpts {
     }
 }
 /// Options for Container::remove method
+#[derive(Default)]
 pub struct RmContainerOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl RmContainerOpts {
     pub fn new() -> Self {
-        RmContainerOpts {
-            opts: HashMap::new(),
-        }
+        RmContainerOpts::default()
     }
     /// Remove the volumes associated with the container.
     pub fn volumes(&mut self, v: bool) -> &mut Self {
@@ -98,14 +95,13 @@ impl RmContainerOpts {
     }
 }
 /// Options for Container::logs method
+#[derive(Default)]
 pub struct ContainerLogsOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl ContainerLogsOpts {
     pub fn new() -> Self {
-        ContainerLogsOpts {
-            opts: HashMap::new(),
-        }
+        ContainerLogsOpts::default()
     }
     /// Keep connection after returning logs.
     pub fn follow(&mut self, follow: bool) -> &mut Self {
@@ -147,14 +143,13 @@ impl ContainerLogsOpts {
     }
 }
 
+#[derive(Default)]
 pub struct ContainerBuilderOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl ContainerBuilderOpts {
     pub fn new() -> Self {
-        ContainerBuilderOpts {
-            opts: HashMap::new(),
-        }
+        ContainerLogsOpts::default()
     }
     /// Get opts
     pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
@@ -313,16 +308,14 @@ impl ContainerBuilderOpts {
 }
 
 /// Options for creating image
+#[derive(Default)]
 pub struct CreateImageOpts {
     opts: HashMap<&'static str, Value>,
     auth: AuthOpts,
 }
 impl CreateImageOpts {
     pub fn new() -> Self {
-        CreateImageOpts {
-            opts: HashMap::new(),
-            auth: AuthOpts::new(),
-        }
+        CreateImageOpts::default()
     }
     pub fn from_image(&mut self, from_image: &str) -> &mut Self {
         insert!(self, "fromImage", from_image);
@@ -373,16 +366,14 @@ impl CreateImageOpts {
 }
 
 /// Options for authentication
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct AuthOpts {
     opts: HashMap<&'static str, Value>,
 }
 
 impl AuthOpts {
     pub fn new() -> Self {
-        AuthOpts {
-            opts: HashMap::new(),
-        }
+        AuthOpts::default()
     }
     pub fn username(&mut self, username: &str) -> &mut Self {
         insert!(self, "username", username);

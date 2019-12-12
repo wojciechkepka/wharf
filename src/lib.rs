@@ -42,7 +42,6 @@
 extern crate failure;
 pub mod api;
 pub mod opts;
-use std::borrow::Cow;
 use crate::api::{Container, Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;

@@ -1,8 +1,48 @@
+//! # Wharf ⚓🦀
+//!
+//! ## Examples
+//! ```
+//! use failure::Error;
+//! use wharf::Docker;
+//! use wharf::opts::{ContainerBuilderOpts, ListContainersOpts};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Error> {
+//!     // create docker api instance
+//!     let d = Docker::new("http://0.0.0.0:2376")?;
+//!     // get containers api handle from d
+//!     let containers = d.containers();
+//!     // Create instance of query options
+//!     let mut opts = ListContainersOpts::new();
+//!     opts.all(true);
+//!     // iterate over containers
+//!     for container in containers.list(opts).await? {
+//!         // access container metadata
+//!         println!("{:?}", container.data().unwrap());
+//!         // manipulate container
+//!         container.stop().await?;
+//!         container.start().await?;
+//!         container.rename("alpine1").await?;
+//!     }
+//!     // Create a container
+//!     let mut container_opts = ContainerBuilderOpts::new();
+//!     container_opts
+//! 	.image("ubuntu")
+//! 	.cmd(&["/bin/echo".into(), "hello".into()])
+//! 	.env(&["HTTPS_PROXY=proxy.domain.com:1337"]);
+//!
+//!     containers.create("jimmy-falcon", &container_opts).await?;
+//!
+//!     Ok(())
+//! }
+//! ```
+
 #![allow(non_snake_case)]
 #[macro_use]
 extern crate failure;
 pub mod api;
 pub mod opts;
+use std::borrow::Cow;
 use crate::api::{Container, Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;
@@ -10,6 +50,8 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+/// The main interface to interact with an instance of Docker.
+/// To interact with subelements of docker like: Containers, Images, Networks or Volumes.
 #[derive(Debug)]
 pub struct Docker {
     client: reqwest::Client,
@@ -17,11 +59,13 @@ pub struct Docker {
 }
 
 impl Docker {
-    pub fn new(s: &str) -> Result<Self, Error> {
+    /// Creates a new instance of docker interface
+    /// may return an error in case of a bad url.
+    pub fn new(url: &str) -> Result<Self, Error> {
         let c = reqwest::ClientBuilder::new();
 
         Ok(Docker {
-            url: Url::parse(s)?,
+            url: Url::parse(url)?,
             client: c.no_proxy().build()?,
         })
     }
@@ -43,6 +87,7 @@ impl Docker {
     }
 
     /// Get auth token for authorized operations
+    /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
         let res = self
             .client

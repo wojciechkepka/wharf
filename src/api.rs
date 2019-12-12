@@ -1,3 +1,33 @@
+//! The best place to get handles to all parts of docker is the Docker struct itself.
+//! From there it's easy to interact with subparts like Containers, Networks or Images.
+//!
+//! ## Examples
+//! ```
+//! use failure::Error;
+//! use wharf::Docker;
+//!
+//! fn main() -> Result<(), Error>{
+//!     let d = Docker::new("http://0.0.0.0:1337")?;
+//!     // Spawn a handle to docker containers
+//!     let containers = d.containers();
+//!     // Spawn a handle to docker images
+//!     let images = d.images();
+//!     // Spawn a handle to docker networks
+//!     let networks = d.networks();
+//! }
+//! ```
+//! Interact with containers in a readable and efficient way
+//! ```
+//! use failure::Error;
+//! use wharf::Docker;
+//!
+//! fn main() -> Result<(), Error> {
+//!     let d = Docker::new("http://0.0.0.0:1337")?;
+//!     let containers = d.containers();
+//!
+//!     containers.list().iter().map(
+//! }
+//!
 extern crate base64;
 use crate::opts::*;
 use crate::{Docker, Msg};

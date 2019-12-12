@@ -6,7 +6,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2-beta
+        with:
+          repository: 'wojciechkepka/wharf'
+          ref: 'master'
       - name: Install Rust stable
         run: |
           rustup toolchain update --no-self-update stable

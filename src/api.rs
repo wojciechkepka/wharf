@@ -2,7 +2,7 @@
 //! From there it's easy to interact with subparts like Containers, Networks or Images.
 //!
 //! ## Examples
-//! ```
+//! ```ignore
 //! use failure::Error;
 //! use wharf::Docker;
 //!
@@ -17,7 +17,7 @@
 //! }
 //! ```
 //! Interact with containers in a readable and efficient way
-//! ```
+//! ```ignore
 //! use failure::Error;
 //! use wharf::Docker;
 //!
@@ -25,9 +25,12 @@
 //!     let d = Docker::new("http://0.0.0.0:1337")?;
 //!     let containers = d.containers();
 //!
-//!     containers.list().iter().map(
+//!     containers
+//!         .list()
+//!         .iter()
+//!         .map(|c| c.start.map_err(|e| eprintln!("{:?", e));
 //! }
-//!
+//! ```
 extern crate base64;
 use crate::opts::*;
 use crate::{Docker, Msg};

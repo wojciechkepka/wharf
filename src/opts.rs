@@ -3,7 +3,7 @@
 //! Configuration builders for all methods are found here.
 //!
 //! You can easily chain options by doing:
-//! ```
+//! ```ignore
 //! opts.path("/example/path").no_overwrite("true").copy_uid_gid("false");
 //! ```
 use failure::Error;

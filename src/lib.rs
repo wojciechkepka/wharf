@@ -1,7 +1,7 @@
 //! # Wharf ⚓🦀
 //!
 //! ## Examples
-//! ```
+//! ```ignore
 //! use failure::Error;
 //! use wharf::Docker;
 //! use wharf::opts::{ContainerBuilderOpts, ListContainersOpts};

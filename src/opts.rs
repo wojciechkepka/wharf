@@ -227,12 +227,12 @@ impl ContainerBuilderOpts {
     }
     /// A list of environment variables to set inside the container in the form ["VAR=value", ...].
     /// A variable without = is removed from the environment, rather than to have an empty value.
-    pub fn env(&mut self, env: &[String]) -> &mut Self {
+    pub fn env(&mut self, env: &[&str]) -> &mut Self {
         insert!(self, "Env", env);
         self
     }
     /// Command to run specified as a string or an array of strings.
-    pub fn cmd(&mut self, cmd: &[String]) -> &mut Self {
+    pub fn cmd(&mut self, cmd: &[&str]) -> &mut Self {
         insert!(self, "Cmd", cmd);
         self
     }
@@ -254,7 +254,7 @@ impl ContainerBuilderOpts {
     /// The entry point for the container as a string or an array of strings.
     /// If the array consists of exactly one empty string ([""]) then the entry point is reset to system default
     /// (i.e., the entry point used by docker when there is no ENTRYPOINT instruction in the Dockerfile).
-    pub fn entrypoint(&mut self, entrypoint: &[String]) -> &mut Self {
+    pub fn entrypoint(&mut self, entrypoint: &[&str]) -> &mut Self {
         insert!(self, "Entrypoint", entrypoint);
         self
     }
@@ -269,7 +269,7 @@ impl ContainerBuilderOpts {
         self
     }
     /// ONBUILD metadata that were defined in the image's Dockerfile.
-    pub fn on_build(&mut self, md: &[String]) -> &mut Self {
+    pub fn on_build(&mut self, md: &[&str]) -> &mut Self {
         insert!(self, "OnBuild", md);
         self
     }
@@ -284,7 +284,7 @@ impl ContainerBuilderOpts {
         self
     }
     /// Shell for when RUN, CMD, and ENTRYPOINT uses a shell.
-    pub fn shell(&mut self, s: &[String]) -> &mut Self {
+    pub fn shell(&mut self, s: &[&str]) -> &mut Self {
         insert!(self, "Shell", s);
         self
     }
@@ -418,6 +418,7 @@ impl AuthOpts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn upload_archive_opts_work() {
@@ -435,9 +436,10 @@ mod tests {
             .no_overwrite("true")
             .copy_uid_gid("true");
 
-        for setting in opts.to_query() {
-            assert!(query.contains(&setting))
-        }
+        opts.to_query()
+            .iter()
+            .map(|o| assert!(query.contains(&o)))
+            .collect()
     }
     #[test]
     fn list_container_opts_work() {
@@ -451,8 +453,102 @@ mod tests {
         let mut opts = ListContainersOpts::new();
         opts.all(true).size(true).limit(10000).filters("");
 
-        for setting in opts.to_query() {
-            assert!(query.contains(&setting))
-        }
+        opts.to_query()
+            .iter()
+            .map(|o| assert!(query.contains(&o)))
+            .collect()
+    }
+    #[test]
+    fn rm_container_opts_work() {
+        let query = vec![
+            ("volumes", serde_json::to_string(&true).unwrap()),
+            ("force", serde_json::to_string(&false).unwrap()),
+            ("link", serde_json::to_string(&true).unwrap()),
+        ];
+
+        let mut opts = RmContainerOpts::new();
+        opts.volumes(true).force(false).link(true);
+
+        opts.to_query()
+            .iter()
+            .map(|o| assert!(query.contains(&o)))
+            .collect()
+    }
+
+    #[test]
+    fn container_builder_opts_work() {
+        let mut labels = HashMap::new();
+        labels.insert("test", "label");
+
+        let body = json!({
+            "Hostname": "test_hostname",
+            "DomainName": "test_domain_name",
+            "User": "test_user",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": true,
+            "StdinOnce": false,
+            "Env": ["ENV=Vars", "FLAG=test"],
+            "Cmd": ["/bin/bash"],
+            "ArgsEscaped": false,
+            "Image": "alpine",
+            "WorkingDir": "/home/test",
+            "Entrypoint": [""],
+            "NetworkDisabled": false,
+            "MacAddress": "39:74:C9:17:87:9F",
+            "OnBuild": [""],
+            "StopSignal": "SIGSTOP",
+            "Shell": [""],
+            "Labels": {
+                "test": "label"
+            },
+            "HostConfig.PortBindings": {
+                "22/tcp": null,
+                "443/tcp": null
+            },
+            "HostConfig.Binds": {
+                "/home/host/path:/home/container/path": null
+            },
+            "HostConfig.Memory": 1000000,
+            "HostConfig.NetworkMode": "bridge",
+        });
+
+        let mut opts = ContainerBuilderOpts::new();
+        opts.hostname("test_hostname")
+            .domain_name("test_domain_name")
+            .user("test_user")
+            .attach_stdin(false)
+            .attach_stdout(true)
+            .attach_stderr(true)
+            .tty(false)
+            .open_stdin(true)
+            .stdin_once(false)
+            .env(&["ENV=Vars", "FLAG=test"])
+            .cmd(&["/bin/bash"])
+            .args_escaped(false)
+            .image("alpine")
+            .working_dir("/home/test")
+            .entrypoint(&[""])
+            .network_disabled(false)
+            .mac_address("39:74:C9:17:87:9F")
+            .on_build(&[""])
+            .stop_signal("SIGSTOP")
+            .shell(&[""])
+            .labels(&labels)
+            .exposed_ports(&["22/tcp", "443/tcp"])
+            .volumes(&["/home/host/path:/home/container/path"])
+            .memory(1000000)
+            .network_mode("bridge");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = body.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
     }
 }

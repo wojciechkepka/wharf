@@ -81,6 +81,7 @@ struct AuthMsg {
     IdentityToken: String,
 }
 impl AuthMsg {
+    #[allow(dead_code)]
     fn status(&self) -> String {
         self.Status.clone()
     }

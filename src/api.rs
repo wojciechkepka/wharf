@@ -6,7 +6,6 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 use std::str;
 use url::Url;
@@ -461,7 +460,7 @@ impl<'d> Container<'d> {
         let text = res.text().await?;
         match status {
             101 => {
-                // The response body is a stream 
+                // The response body is a stream
                 // #TODO
                 // implement a stream reader for:
                 // - https://docs.docker.com/engine/api/v1.40/#operation/ContainerAttach

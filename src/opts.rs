@@ -369,11 +369,24 @@ impl CreateImageOpts {
         insert!(self, "platform", platform);
         self
     }
-    pub fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
+    pub fn username(&mut self, username: &str) -> &mut Self {
+        self.auth.username(username);
+        self
     }
-    pub fn auth(&mut self) -> &mut AuthOpts {
-        &mut self.auth
+    pub fn password(&mut self, password: &str) -> &mut Self {
+        self.auth.password(password);
+        self
+    }
+    pub fn email(&mut self, email: &str) -> &mut Self {
+        self.auth.email(email);
+        self
+    }
+    pub fn server_address(&mut self, server_address: &str) -> &mut Self {
+        self.auth.server_address(server_address);
+        self
+    }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
     }
     pub(crate) fn auth_ref(&self) -> &AuthOpts {
         &self.auth
@@ -419,6 +432,7 @@ impl AuthOpts {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::str;
 
     #[test]
     fn upload_archive_opts_work() {
@@ -474,7 +488,6 @@ mod tests {
             .map(|o| assert!(query.contains(&o)))
             .collect()
     }
-
     #[test]
     fn container_builder_opts_work() {
         let mut labels = HashMap::new();
@@ -549,6 +562,65 @@ mod tests {
                 assert!(val.is_some());
                 assert_eq!(val.unwrap(), v);
             })
+            .collect()
+    }
+    #[test]
+    fn auth_opts_work() {
+        let opts_j = json!({
+            "username": "user",
+            "password": "pass",
+            "email": "email@random.co",
+            "serveraddress": "http://0.0.0.0:666"
+        });
+
+        let mut opts = AuthOpts::new();
+        opts.username("user")
+            .password("pass")
+            .email("email@random.co")
+            .server_address("http://0.0.0.0:666");
+
+        let _ = opts
+            .opts
+            .iter()
+            .map(|(k, v)| {
+                let val = opts_j.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect::<()>();
+
+        let serialized = opts.serialize().unwrap();
+        let decoded = base64::decode(&serialized).unwrap();
+        let deserialized: HashMap<&str, Value> =
+            serde_json::from_str(str::from_utf8(&decoded).unwrap()).unwrap();
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = deserialized.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
+    }
+    #[test]
+    fn create_image_opts_work() {
+        let query = vec![
+            ("fromImage", serde_json::to_string("alpine").unwrap()),
+            ("fromSrc", serde_json::to_string("-").unwrap()),
+            ("repo", serde_json::to_string("repo").unwrap()),
+            ("tag", serde_json::to_string("tag").unwrap()),
+        ];
+
+        let mut opts = CreateImageOpts::new();
+        opts.from_image("alpine")
+            .from_src("-")
+            .repo("repo")
+            .tag("tag");
+
+        opts.to_query()
+            .iter()
+            .map(|o| assert!(query.contains(&o)))
             .collect()
     }
 }

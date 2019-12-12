@@ -627,6 +627,14 @@ impl<'d> Images<'d> {
         let body = res.text().await?;
         Ok(serde_json::from_str(&body)?)
     }
+    /// Pulls an image from registry
+    /// WARNING!
+    /// not specyfying tag will pull all tags of image
+    pub async fn pull(&self, image: &str, tag: &str, auth: &AuthOpts) -> Result<(), Error> {
+        let mut opts = CreateImageOpts::new();
+        opts.from_image(image).tag(tag).set_auth(&auth);
+        self.create(&opts).await
+    }
     /// Create an image by either pulling it from a registry or importing it.
     pub async fn create(&self, opts: &CreateImageOpts) -> Result<(), Error> {
         let mut req = self

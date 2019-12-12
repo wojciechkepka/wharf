@@ -366,9 +366,14 @@ impl CreateImageOpts {
     pub(crate) fn auth_ref(&self) -> &AuthOpts {
         &self.auth
     }
+    pub(crate) fn set_auth(&mut self, auth: &AuthOpts) -> &mut Self {
+        self.auth = auth.clone();
+        self
+    }
 }
 
 /// Options for authentication
+#[derive(Clone)]
 pub struct AuthOpts {
     opts: HashMap<&'static str, Value>,
 }

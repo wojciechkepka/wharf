@@ -64,6 +64,7 @@ async fn main() -> Result<(), Error> {
   - [ ] logs
   - [ ] attaching
 - Images
+  - [x] pull
   - [x] listing 
 - Networks
   - [x] listing

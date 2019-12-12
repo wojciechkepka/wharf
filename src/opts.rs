@@ -1,3 +1,11 @@
+//! # Options
+//!
+//! Configuration builders for all methods are found here.
+//!
+//! You can easily chain options by doing:
+//! ```
+//! opts.path("/example/path").no_overwrite("true").copy_uid_gid("false");
+//! ```
 use failure::Error;
 use log::*;
 use serde::Serialize;
@@ -8,7 +16,7 @@ macro_rules! insert {
         $s.opts.insert($k, serde_json::to_value($v).unwrap());
     };
 }
-/// Options for Container::upload_archive method
+/// Options for uploading an archive to a container
 #[derive(Default)]
 pub struct UploadArchiveOpts {
     opts: HashMap<&'static str, Value>,
@@ -46,18 +54,23 @@ impl ListContainersOpts {
     pub fn new() -> Self {
         ListContainersOpts::default()
     }
+    /// Return all containers. By default, only running containers are shown
     pub fn all(&mut self, all: bool) -> &mut Self {
         insert!(self, "all", all);
         self
     }
+    /// Return this number of most recently created containers, including non-running ones.
     pub fn limit(&mut self, limit: usize) -> &mut Self {
         insert!(self, "limit", limit);
         self
     }
+    /// Return the size of container as fields SizeRw and SizeRootFs.
     pub fn size(&mut self, size: bool) -> &mut Self {
         insert!(self, "size", size);
         self
     }
+    /// Filters to process on the container list, encoded as JSON (a map[string][]string). For example, {"status": ["paused"]} will only return paused containers.
+    /// for more information head to [docker reference](https://docs.docker.com/engine/api/v1.40/#operation/ContainerList)
     pub fn filters(&mut self, filters: &str) -> &mut Self {
         insert!(self, "filters", filters);
         self
@@ -66,7 +79,7 @@ impl ListContainersOpts {
         &self.opts
     }
 }
-/// Options for Container::remove method
+/// Options for removing a container
 #[derive(Default)]
 pub struct RmContainerOpts {
     opts: HashMap<&'static str, Value>,
@@ -94,7 +107,7 @@ impl RmContainerOpts {
         &self.opts
     }
 }
-/// Options for Container::logs method
+/// Options for container logs
 #[derive(Default)]
 pub struct ContainerLogsOpts {
     opts: HashMap<&'static str, Value>,
@@ -143,6 +156,7 @@ impl ContainerLogsOpts {
     }
 }
 
+/// Options for building a container
 #[derive(Default)]
 pub struct ContainerBuilderOpts {
     opts: HashMap<&'static str, Value>,
@@ -317,22 +331,27 @@ impl CreateImageOpts {
     pub fn new() -> Self {
         CreateImageOpts::default()
     }
+    /// Name of the image to pull. The name may include a tag or digest. This parameter may only be used when pulling an image. The pull is cancelled if the HTTP connection is closed.
     pub fn from_image(&mut self, from_image: &str) -> &mut Self {
         insert!(self, "fromImage", from_image);
         self
     }
+    /// Source to import. The value may be a URL from which the image can be retrieved or - to read the image from the request body. This parameter may only be used when importing an image.
     pub fn from_src(&mut self, from_src: &str) -> &mut Self {
         insert!(self, "fromSrc", from_src);
         self
     }
+    /// Repository name given to an image when it is imported. The repo may include a tag. This parameter may only be used when importing an image.
     pub fn repo(&mut self, repo: &str) -> &mut Self {
         insert!(self, "repo", repo);
         self
     }
+    /// Tag or digest. If empty when pulling an image, this causes all tags for the given image to be pulled.
     pub fn tag(&mut self, tag: &str) -> &mut Self {
         insert!(self, "tag", tag);
         self
     }
+    /// Platform in the format os[/arch[/variant]]
     pub fn platform(&mut self, platform: &str) -> &mut Self {
         insert!(self, "platform", platform);
         self
@@ -349,6 +368,8 @@ impl CreateImageOpts {
         self.auth.email(email);
         self
     }
+    /// Url to docker registry
+    /// f.e. hub.docker.com
     pub fn server_address(&mut self, server_address: &str) -> &mut Self {
         self.auth.server_address(server_address);
         self

@@ -411,42 +411,66 @@ mod tests {
 
     #[test]
     fn upload_archive_opts_work() {
-        let query = vec![
-            ("path", serde_json::to_string("/example/path").unwrap()),
-            (
-                "noOverwriteDirNonDir",
-                serde_json::to_string("true").unwrap(),
-            ),
-            ("copyUIDGID", serde_json::to_string("true").unwrap()),
-        ];
+        let mut query = HashMap::new();
+        query.insert("path", serde_json::to_value("/example/path").unwrap());
+        query.insert(
+            "noOverwriteDirNonDir",
+            serde_json::to_value("true").unwrap(),
+        );
+        query.insert("copyUIDGID", serde_json::to_value("true").unwrap());
 
         let mut opts = UploadArchiveOpts::new();
         opts.path("/example/path")
             .no_overwrite("true")
             .copy_uid_gid("true");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = query.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
     }
     #[test]
     fn list_container_opts_work() {
-        let query = vec![
-            ("all", serde_json::to_string(&true).unwrap()),
-            ("limit", serde_json::to_string(&10000).unwrap()),
-            ("size", serde_json::to_string(&true).unwrap()),
-            ("filters", serde_json::to_string("").unwrap()),
-        ];
+        let mut query = HashMap::new();
+        query.insert("all", serde_json::to_value(&true).unwrap());
+        query.insert("size", serde_json::to_value(&true).unwrap());
+        query.insert("limit", serde_json::to_value(&10000).unwrap());
+        query.insert("filters", "".into());
 
         let mut opts = ListContainersOpts::new();
         opts.all(true).size(true).limit(10000).filters("");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = query.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
     }
     #[test]
     fn rm_container_opts_work() {
-        let query = vec![
-            ("volumes", serde_json::to_string(&true).unwrap()),
-            ("force", serde_json::to_string(&false).unwrap()),
-            ("link", serde_json::to_string(&true).unwrap()),
-        ];
+        let mut query = HashMap::new();
+        query.insert("volumes", serde_json::to_value(&true).unwrap());
+        query.insert("force", serde_json::to_value(&false).unwrap());
+        query.insert("link", serde_json::to_value(&true).unwrap());
 
         let mut opts = RmContainerOpts::new();
         opts.volumes(true).force(false).link(true);
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = query.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
     }
     #[test]
     fn container_builder_opts_work() {
@@ -565,17 +589,25 @@ mod tests {
     }
     #[test]
     fn create_image_opts_work() {
-        let query = vec![
-            ("fromImage", serde_json::to_string("alpine").unwrap()),
-            ("fromSrc", serde_json::to_string("-").unwrap()),
-            ("repo", serde_json::to_string("repo").unwrap()),
-            ("tag", serde_json::to_string("tag").unwrap()),
-        ];
+        let mut query: HashMap<&str, Value> = HashMap::new();
+        query.insert("fromImage", "alpine".into());
+        query.insert("fromSrc", "-".into());
+        query.insert("repo", "repo".into());
+        query.insert("tag", "tag".into());
 
         let mut opts = CreateImageOpts::new();
         opts.from_image("alpine")
             .from_src("-")
             .repo("repo")
             .tag("tag");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = query.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
     }
 }

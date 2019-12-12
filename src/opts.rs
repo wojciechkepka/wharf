@@ -35,18 +35,18 @@ impl UploadArchiveOpts {
         }
     }
     /// Path to a directory in the container to extract the archive’s contents into.
-    pub fn path<T: Into<String> + Serialize>(&mut self, path: T) -> &mut Self {
+    pub fn path(&mut self, path: &str) -> &mut Self {
         // It's a valid utf-8 string so its ok to unwrap here
         insert!(self, "path", path);
         self
     }
     /// If “1”, “true”, or “True” then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa.
-    pub fn no_overwrite<T: Into<String> + Serialize>(&mut self, no_overwrite: T) -> &mut Self {
+    pub fn no_overwrite(&mut self, no_overwrite: &str) -> &mut Self {
         insert!(self, "noOverwriteDirNonDir", no_overwrite);
         self
     }
     /// If “1”, “true”, then it will copy UID/GID maps to the dest file or dir
-    pub fn copy_uid_gid<T: Into<String> + Serialize>(&mut self, copy_uid_gid: T) -> &mut Self {
+    pub fn copy_uid_gid(&mut self, copy_uid_gid: &str) -> &mut Self {
         insert!(self, "copyUIDGID", copy_uid_gid);
         self
     }
@@ -79,7 +79,7 @@ impl ListContainersOpts {
         insert!(self, "size", size);
         self
     }
-    pub fn filters(&mut self, filters: bool) -> &mut Self {
+    pub fn filters(&mut self, filters: &str) -> &mut Self {
         insert!(self, "filters", filters);
         self
     }
@@ -412,5 +412,47 @@ impl AuthOpts {
     }
     pub fn serialize(&self) -> Result<String, Error> {
         Ok(base64::encode(&serde_json::to_string(&self.opts)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_archive_opts_work() {
+        let query = vec![
+            ("path", serde_json::to_string("/example/path").unwrap()),
+            (
+                "noOverwriteDirNonDir",
+                serde_json::to_string("true").unwrap(),
+            ),
+            ("copyUIDGID", serde_json::to_string("true").unwrap()),
+        ];
+
+        let mut opts = UploadArchiveOpts::new();
+        opts.path("/example/path")
+            .no_overwrite("true")
+            .copy_uid_gid("true");
+
+        for setting in opts.to_query() {
+            assert!(query.contains(&setting))
+        }
+    }
+    #[test]
+    fn list_container_opts_work() {
+        let query = vec![
+            ("all", serde_json::to_string(&true).unwrap()),
+            ("limit", serde_json::to_string(&10000).unwrap()),
+            ("size", serde_json::to_string(&true).unwrap()),
+            ("filters", serde_json::to_string("").unwrap()),
+        ];
+
+        let mut opts = ListContainersOpts::new();
+        opts.all(true).size(true).limit(10000).filters("");
+
+        for setting in opts.to_query() {
+            assert!(query.contains(&setting))
+        }
     }
 }

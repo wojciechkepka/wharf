@@ -416,6 +416,7 @@ mod tests {
 
     #[test]
     fn upload_archive_opts_work() {
+        let _ = ();
         let mut query = HashMap::new();
         query.insert("path", serde_json::to_value("/example/path").unwrap());
         query.insert(

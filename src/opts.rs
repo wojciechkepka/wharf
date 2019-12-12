@@ -8,25 +8,9 @@ macro_rules! insert {
         $s.opts.insert($k, serde_json::to_value($v).unwrap());
     };
 }
-macro_rules! query {
-    ($s:ident) => {
-        $s.opts
-            .iter()
-            .map(|(k, v)| (*k, serde_json::to_string(v).unwrap()))
-            .collect()
-    };
-}
-pub trait Query<'o> {
-    fn to_query(&self) -> Vec<(&'o str, String)>;
-}
 /// Options for Container::upload_archive method
 pub struct UploadArchiveOpts {
     opts: HashMap<&'static str, Value>,
-}
-impl<'o> Query<'o> for UploadArchiveOpts {
-    fn to_query(&self) -> Vec<(&'o str, String)> {
-        query!(self)
-    }
 }
 impl UploadArchiveOpts {
     pub fn new() -> Self {
@@ -50,17 +34,14 @@ impl UploadArchiveOpts {
         insert!(self, "copyUIDGID", copy_uid_gid);
         self
     }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
 }
 /// Options for listing containers
 pub struct ListContainersOpts {
     opts: HashMap<&'static str, Value>,
 }
-impl<'o> Query<'o> for ListContainersOpts {
-    fn to_query(&self) -> Vec<(&'o str, String)> {
-        query!(self)
-    }
-}
-
 impl ListContainersOpts {
     pub fn new() -> Self {
         ListContainersOpts {
@@ -83,15 +64,13 @@ impl ListContainersOpts {
         insert!(self, "filters", filters);
         self
     }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
 }
 /// Options for Container::remove method
 pub struct RmContainerOpts {
     opts: HashMap<&'static str, Value>,
-}
-impl<'o> Query<'o> for RmContainerOpts {
-    fn to_query(&self) -> Vec<(&'o str, String)> {
-        query!(self)
-    }
 }
 impl RmContainerOpts {
     pub fn new() -> Self {
@@ -114,15 +93,13 @@ impl RmContainerOpts {
         insert!(self, "link", link);
         self
     }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
 }
 /// Options for Container::logs method
 pub struct ContainerLogsOpts {
     opts: HashMap<&'static str, Value>,
-}
-impl<'o> Query<'o> for ContainerLogsOpts {
-    fn to_query(&self) -> Vec<(&'o str, String)> {
-        query!(self)
-    }
 }
 impl ContainerLogsOpts {
     pub fn new() -> Self {
@@ -165,6 +142,9 @@ impl ContainerLogsOpts {
         insert!(self, "tail", tail);
         self
     }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
 }
 
 pub struct ContainerBuilderOpts {
@@ -177,7 +157,7 @@ impl ContainerBuilderOpts {
         }
     }
     /// Get opts
-    pub fn opts(&self) -> &HashMap<&'static str, Value> {
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
     }
     /// The hostname to use for the container, as a valid RFC 1123 hostname.
@@ -337,11 +317,6 @@ pub struct CreateImageOpts {
     opts: HashMap<&'static str, Value>,
     auth: AuthOpts,
 }
-impl<'o> Query<'o> for CreateImageOpts {
-    fn to_query(&self) -> Vec<(&'o str, String)> {
-        query!(self)
-    }
-}
 impl CreateImageOpts {
     pub fn new() -> Self {
         CreateImageOpts {
@@ -420,7 +395,7 @@ impl AuthOpts {
         insert!(self, "serveraddress", server_address);
         self
     }
-    pub fn opts(&self) -> &HashMap<&'static str, Value> {
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
     }
     pub fn serialize(&self) -> Result<String, Error> {
@@ -449,11 +424,6 @@ mod tests {
         opts.path("/example/path")
             .no_overwrite("true")
             .copy_uid_gid("true");
-
-        opts.to_query()
-            .iter()
-            .map(|o| assert!(query.contains(&o)))
-            .collect()
     }
     #[test]
     fn list_container_opts_work() {
@@ -466,11 +436,6 @@ mod tests {
 
         let mut opts = ListContainersOpts::new();
         opts.all(true).size(true).limit(10000).filters("");
-
-        opts.to_query()
-            .iter()
-            .map(|o| assert!(query.contains(&o)))
-            .collect()
     }
     #[test]
     fn rm_container_opts_work() {
@@ -482,11 +447,6 @@ mod tests {
 
         let mut opts = RmContainerOpts::new();
         opts.volumes(true).force(false).link(true);
-
-        opts.to_query()
-            .iter()
-            .map(|o| assert!(query.contains(&o)))
-            .collect()
     }
     #[test]
     fn container_builder_opts_work() {
@@ -617,10 +577,5 @@ mod tests {
             .from_src("-")
             .repo("repo")
             .tag("tag");
-
-        opts.to_query()
-            .iter()
-            .map(|o| assert!(query.contains(&o)))
-            .collect()
     }
 }

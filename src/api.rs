@@ -282,7 +282,7 @@ impl<'d> Container<'d> {
                     .url
                     .join(&format!("containers/{}/rename", self.id))?,
             )
-            .query(&opts.to_query())
+            .query(opts.opts())
             .send()
             .await?;
         let status = res.status().as_u16();
@@ -305,7 +305,7 @@ impl<'d> Container<'d> {
                     .url
                     .join(&format!("containers/{}/logs", self.id))?,
             )
-            .query(&opts.to_query())
+            .query(opts.opts())
             .send()
             .await?;
         let status = res.status().as_u16();
@@ -357,7 +357,7 @@ impl<'d> Container<'d> {
                     .url
                     .join(&format!("containers/{}/archive", self.id))?,
             )
-            .query(&opts.to_query())
+            .query(opts.opts())
             .body(archive.to_vec())
             .send()
             .await?;
@@ -498,7 +498,7 @@ impl<'d> Containers<'d> {
             .docker
             .client
             .get(self.docker.url.join("containers/json")?)
-            .query(&opts.to_query())
+            .query(opts.opts())
             .send()
             .await?;
         let docker = self.docker;
@@ -632,12 +632,14 @@ impl<'d> Images<'d> {
         let mut req = self
             .docker
             .client
-            .post(self.docker.url.join("/images/create")?);
+            .post(self.docker.url.join("images/create")?);
         // if we're pulling from registry we need to authenticate
         if opts.opts().get("fromImage").is_some() {
             req = req.header("X-Registry-Auth", opts.auth_ref().serialize()?);
         }
-        req = req.query(&opts.to_query());
+        req = req.query(opts.opts());
+        //req = req.query(&[("fromImage", "ubuntu")]);
+        debug!("{:?}", req);
         let res = req.send().await?;
         let status = res.status().as_u16();
         debug!("{:?}", res);

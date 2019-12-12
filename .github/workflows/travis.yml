@@ -24,8 +24,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout the source code
-      run: actions/checkout@master
+    - uses: actions/checkout@v2-beta
+      with:
+        repository: 'wojciechkepka/wharf'
+        ref: 'master'
       
     - name: Build
       run: cargo build --verbose

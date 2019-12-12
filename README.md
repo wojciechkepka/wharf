@@ -33,18 +33,15 @@ async fn main() -> Result<(), Error> {
 
     containers.create("jimmy-falcon", &container_opts).await?;
 
-
     Ok(())
 }
 ```
 ## Current TODO
-- [ ] fix uploading archives to containers
+- [ ] allow connection over unix socket
 - [ ] Attaching to containers
 - [ ] Getting logs from containers
-- [ ] allow connection over unix socket
 - [ ] implement all images interface
 - [ ] implement all networks interface
-- [ ] figure out a way to write tests
 ## Currently working api
 - Containers
   - [x] listing
@@ -60,7 +57,7 @@ async fn main() -> Result<(), Error> {
   - [x] file info
   - [x] ps
   - [x] create
-  - [ ] uploading archives
+  - [x] uploading archives
   - [ ] logs
   - [ ] attaching
 - Images

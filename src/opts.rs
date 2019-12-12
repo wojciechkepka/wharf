@@ -149,7 +149,7 @@ pub struct ContainerBuilderOpts {
 }
 impl ContainerBuilderOpts {
     pub fn new() -> Self {
-        ContainerLogsOpts::default()
+        ContainerBuilderOpts::default()
     }
     /// Get opts
     pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {

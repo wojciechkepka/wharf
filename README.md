@@ -39,9 +39,9 @@ async fn main() -> Result<(), Error> {
 ```
 ## Current TODO
 - [ ] fix uploading archives to containers
-- [x] Creating containers
 - [ ] Attaching to containers
 - [ ] Getting logs from containers
+- [ ] allow connection over unix socket
 - [ ] implement all images interface
 - [ ] implement all networks interface
 - [ ] figure out a way to write tests

@@ -632,7 +632,7 @@ impl<'d> Images<'d> {
         let mut req = self
             .docker
             .client
-            .post(self.docker.url.join("images/create")?);
+            .post(self.docker.url.join("/images/create")?);
         // if we're pulling from registry we need to authenticate
         if opts.opts().get("fromImage").is_some() {
             req = req.header("X-Registry-Auth", opts.auth_ref().serialize()?);

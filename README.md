@@ -36,34 +36,5 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 ```
-## Current TODO
-- [ ] allow connection over unix socket
-- [ ] Attaching to containers
-- [ ] Getting logs from containers
-- [ ] implement all images interface
-- [ ] implement all networks interface
-## Currently working api
-- Containers
-  - [x] listing
-  - [x] starting
-  - [x] stopping
-  - [x] restarting
-  - [x] inspecting
-  - [x] killing
-  - [x] unpausing
-  - [x] pausing
-  - [x] renaming
-  - [x] archiving path
-  - [x] file info
-  - [x] ps
-  - [x] create
-  - [x] uploading archives
-  - [ ] logs
-  - [ ] attaching
-- Images
-  - [x] pull
-  - [x] listing 
-- Networks
-  - [x] listing
 ## License
 [MIT](https://github.com/wojciechkepka/wharf/blob/master/LICENSE)

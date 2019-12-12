@@ -1,4 +1,9 @@
 # Wharf ⚓🦀
+[![GitHub Actions](https://github.com/wojciechkepka/wharf/workflows/Wharf/badge.svg)](https://github.com/wojciechkepka/wharf/actions)
+[![crates.io](https://img.shields.io/crates/v/wharf)](https://crates.io/crates/wharf)
+[![Crates.io](https://img.shields.io/crates/l/wharf)](https://github.com/wojciechkepka/wharf/blob/master/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-master-brightgreen)](https://docs.rs/wharf)
+
 Fully asynchronous docker api library written in Rust.
 ## Examples
 ```rust

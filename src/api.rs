@@ -6,7 +6,8 @@
 //! use failure::Error;
 //! use wharf::Docker;
 //!
-//! fn main() -> Result<(), Error>{
+//! #[tokio::main]
+//! async fn main() -> Result<(), Error>{
 //!     let d = Docker::new("http://0.0.0.0:1337")?;
 //!     // Spawn a handle to docker containers
 //!     let containers = d.containers();
@@ -14,21 +15,6 @@
 //!     let images = d.images();
 //!     // Spawn a handle to docker networks
 //!     let networks = d.networks();
-//! }
-//! ```
-//! Interact with containers in a readable and efficient way
-//! ```ignore
-//! use failure::Error;
-//! use wharf::Docker;
-//!
-//! fn main() -> Result<(), Error> {
-//!     let d = Docker::new("http://0.0.0.0:1337")?;
-//!     let containers = d.containers();
-//!
-//!     containers
-//!         .list()
-//!         .iter()
-//!         .map(|c| c.start.map_err(|e| eprintln!("{:?", e));
 //! }
 //! ```
 extern crate base64;

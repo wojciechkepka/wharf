@@ -26,9 +26,7 @@ use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
 use log::*;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::path::Path;
 use std::str;
 use url::Url;
@@ -146,7 +144,7 @@ impl<'d> Container<'d> {
     }
     /// Inspect a container
     /// Return low-level information about a container.
-    pub async fn inspect(&self) -> Result<InspectContainer, Error> {
+    pub async fn inspect(&self) -> Result<ContainerInspect, Error> {
         let res = self
             .docker
             .client
@@ -161,7 +159,7 @@ impl<'d> Container<'d> {
         let text = res.text().await?;
         match status {
             200 => {
-                let data: InspectContainer = serde_json::from_str(&text)?;
+                let data: ContainerInspect = serde_json::from_str(&text)?;
                 Ok(data)
             }
             404 => err_msg!(text, "no such container"),
@@ -509,13 +507,13 @@ impl<'d> Containers<'d> {
         debug!("{:?}", res);
         let text = res.text().await?;
         debug!("{}", text);
-        let data: Vec<ContainerJson> = serde_json::from_str(&text)?;
+        let data: Vec<ContainerData> = serde_json::from_str(&text)?;
         debug!("{:?}", data);
         Ok(data
             .iter()
             .map(|c| Container {
                 docker,
-                id: c.Id.clone(),
+                id: c.id.clone(),
             })
             .collect())
     }
@@ -556,7 +554,7 @@ impl<'d> Networks<'d> {
         Networks { docker }
     }
     /// List all networks
-    pub async fn list(&self) -> Result<Vec<Network>, Error> {
+    pub async fn list(&self) -> Result<Vec<NetworkData>, Error> {
         let res = self
             .docker
             .client
@@ -599,7 +597,7 @@ impl<'d> Images<'d> {
         Images { docker }
     }
     /// List all images
-    pub async fn list(&self) -> Result<Vec<ImagesJson>, Error> {
+    pub async fn list(&self) -> Result<Vec<ImageData>, Error> {
         // FIXME later
         let res = self
             .docker

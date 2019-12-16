@@ -3,24 +3,43 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub(crate) struct ContainerJson {
-    pub(crate) Id: String,
-    Names: Vec<String>,
-    Image: String,
-    ImageID: String,
-    Command: String,
-    Created: usize,
-    State: Value,
-    Status: String,
-    Ports: Vec<Value>,
-    Labels: Value,
-    HostConfig: Value,
-    NetworkSettings: Value,
-    Mounts: Vec<Value>,
+/// Container data returned from containers.list()
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerData {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Names")]
+    pub names: Vec<String>,
+    #[serde(rename = "Image")]
+    pub image: String,
+    #[serde(rename = "ImageID")]
+    pub image_id: String,
+    #[serde(rename = "Command")]
+    pub command: String,
+    #[serde(rename = "Created")]
+    pub created: i64,
+    #[serde(rename = "State")]
+    pub state: String,
+    #[serde(rename = "Status")]
+    pub status: String,
+    #[serde(rename = "Ports")]
+    pub ports: Vec<Value>,
+    #[serde(rename = "Labels")]
+    pub labels: Value,
+    #[serde(rename = "SizeRw")]
+    pub size_rw: i64,
+    #[serde(rename = "SizeRootFs")]
+    pub size_root_fs: i64,
+    #[serde(rename = "HostConfig")]
+    pub host_config: Value,
+    #[serde(rename = "NetworkSettings")]
+    pub network_settings: Value,
+    #[serde(rename = "Mounts")]
+    pub mounts: Vec<Value>,
 }
 
 #[derive(Serialize, Deserialize)]
+// Needed to create Vec<Process> for container.ps()
 pub(crate) struct ContainerProcessesJson {
     pub(crate) Titles: Vec<String>,
     pub(crate) Processes: Vec<Vec<String>>,
@@ -28,55 +47,90 @@ pub(crate) struct ContainerProcessesJson {
 
 /// Result data of container.inspect()
 #[derive(Deserialize, Debug, Serialize)]
-pub struct InspectContainer {
-    AppArmorProfile: String,
-    Args: Value,
-    Config: Value,
-    Created: String,
-    Driver: String,
-    ExecIDs: Value,
-    HostConfig: Value,
-    HostnamePath: String,
-    HostsPath: String,
-    LogPath: String,
-    Id: String,
-    MountLabel: String,
-    Name: String,
-    NetworkSettings: Value,
-    Path: String,
-    ProcessLabel: String,
-    ResolvConfPath: String,
-    RestartCount: usize,
-    State: Value,
-    Mounts: Vec<Value>,
+pub struct ContainerInspect {
+    #[serde(rename = "AppArmorProfile")]
+    pub app_armor_profile: String,
+    #[serde(rename = "Args")]
+    pub args: Vec<String>,
+    #[serde(rename = "Config")]
+    pub config: Value,
+    #[serde(rename = "Created")]
+    pub created: String,
+    #[serde(rename = "Driver")]
+    pub driver: String,
+    #[serde(rename = "ExecIDs")]
+    pub exec_ids: Vec<String>,
+    #[serde(rename = "HostConfig")]
+    pub host_config: Value,
+    #[serde(rename = "HostnamePath")]
+    pub hostname_path: String,
+    #[serde(rename = "HostsPath")]
+    pub hosts_path: String,
+    #[serde(rename = "LogPath")]
+    pub log_path: String,
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Image")]
+    pub image: String,
+    #[serde(rename = "MountLabel")]
+    pub mount_label: String,
+    #[serde(rename = "Name")]
+    pub name: String,
+    #[serde(rename = "NetworkSettings")]
+    pub network_settings: Value,
+    #[serde(rename = "Path")]
+    pub path: String,
+    #[serde(rename = "ProcessLabel")]
+    pub process_label: String,
+    #[serde(rename = "ResolvConfPath")]
+    pub resolv_conf_path: String,
+    #[serde(rename = "RestartCount")]
+    pub restart_count: i64,
+    #[serde(rename = "State")]
+    pub state: Value,
+    #[serde(rename = "Mounts")]
+    pub mounts: Vec<Value>,
 }
 
-// TODO: add some public api for this
+/// Data returned from container.file_info()
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileInfo {
-    name: String,
-    size: usize,
-    mode: usize,
-    mtime: String,
-    linkTarget: String,
+    pub name: String,
+    pub size: usize,
+    pub mode: usize,
+    pub mtime: String,
+    pub linkTarget: String,
 }
 
-// TODO: Rethink making this public
+/// Image data returned from images.list()
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ImagesJson {
-    Id: String,
-    ParentId: String,
-    RepoTags: Vec<String>,
-    RepoDigests: Vec<String>,
-    Created: u64,
-    Size: isize,
-    VirtualSize: isize,
-    SharedSize: isize,
-    Labels: Value,
-    Containers: isize,
+pub struct ImageData {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "ParentId")]
+    pub parent_id: String,
+    #[serde(rename = "RepoTags")]
+    pub repo_tags: Vec<String>,
+    #[serde(rename = "RepoDigests")]
+    pub repo_digests: Vec<String>,
+    #[serde(rename = "Created")]
+    pub created: i64,
+    #[serde(rename = "Size")]
+    pub size: i64,
+    #[serde(rename = "VirtualSize")]
+    pub virtual_size: i64,
+    #[serde(rename = "SharedSize")]
+    pub shared_size: i64,
+    #[serde(rename = "Labels")]
+    pub labels: Value,
+    #[serde(rename = "Containers")]
+    pub containers: i64,
 }
+
+/// Information about a process returned from container.ps()  
 #[derive(Debug)]
 pub struct Process {
+    /// May contain different information based on the flags passed to .ps()
     pub info: HashMap<String, String>,
 }
 impl Process {
@@ -90,17 +144,32 @@ impl Process {
         }
     }
 }
+
+/// Information about a network returned from networks.list()
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Network {
-    Name: String,
-    Id: String,
-    Created: String,
-    Scope: String,
-    Driver: String,
-    EnableIPv6: bool,
-    Internal: bool,
-    Attachable: bool,
-    Ingress: bool,
-    IPAM: Value,
-    Options: Value,
+pub struct NetworkData {
+    #[serde(rename = "Name")]
+    pub name: String,
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Created")]
+    pub created: String,
+    #[serde(rename = "Scope")]
+    pub scope: String,
+    #[serde(rename = "Driver")]
+    pub driver: String,
+    #[serde(rename = "EnableIPv6")]
+    pub enable_ipv6: bool,
+    #[serde(rename = "Internal")]
+    pub internal: bool,
+    #[serde(rename = "Attachable")]
+    pub attachable: bool,
+    #[serde(rename = "Ingress")]
+    pub ingress: bool,
+    #[serde(rename = "IPAM")]
+    pub ipam: Value,
+    #[serde(rename = "Options")]
+    pub options: Value,
+    #[serde(rename = "Containers")]
+    pub containers: Option<Value>,
 }

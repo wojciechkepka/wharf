@@ -22,6 +22,7 @@
 //! ```
 extern crate base64;
 use crate::opts::*;
+use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
 use log::*;
@@ -42,66 +43,6 @@ macro_rules! err_msg {
 }
 
 // * Containers start *
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-struct ContainerJson {
-    Id: String,
-    Names: Vec<String>,
-    Image: String,
-    ImageID: String,
-    Command: String,
-    Created: usize,
-    State: Value,
-    Status: String,
-    Ports: Vec<Value>,
-    Labels: Value,
-    HostConfig: Value,
-    NetworkSettings: Value,
-    Mounts: Vec<Value>,
-}
-#[derive(Serialize, Deserialize)]
-struct ContainerProcessesJson {
-    Titles: Vec<String>,
-    Processes: Vec<Vec<String>>,
-}
-#[derive(Debug)]
-pub struct Process {
-    pub info: HashMap<String, String>,
-}
-impl Process {
-    fn new(titles: &[String], processes: &[String]) -> Self {
-        Process {
-            info: titles
-                .iter()
-                .cloned()
-                .zip(processes.iter().cloned())
-                .collect(),
-        }
-    }
-}
-/// Result data of container.inspect()
-#[derive(Deserialize, Debug, Serialize)]
-pub struct InspectContainer {
-    AppArmorProfile: String,
-    Args: Value,
-    Config: Value,
-    Created: String,
-    Driver: String,
-    ExecIDs: Value,
-    HostConfig: Value,
-    HostnamePath: String,
-    HostsPath: String,
-    LogPath: String,
-    Id: String,
-    MountLabel: String,
-    Name: String,
-    NetworkSettings: Value,
-    Path: String,
-    ProcessLabel: String,
-    ResolvConfPath: String,
-    RestartCount: usize,
-    State: Value,
-    Mounts: Vec<Value>,
-}
 
 macro_rules! post_container {
     ($api:expr, $d:ident) => {{
@@ -277,7 +218,7 @@ impl<'d> Container<'d> {
             204 => {
                 self.id = new_name.to_string();
                 Ok(())
-            },
+            }
             404 => err_msg!(text, "no such container"),
             409 => err_msg!(text, "name already in use"),
             500 => err_msg!(text, "server error"),
@@ -546,16 +487,6 @@ impl<'d> Container<'d> {
     }
 }
 
-// TODO: add some public api for this
-#[derive(Serialize, Deserialize, Debug)]
-pub struct FileInfo {
-    name: String,
-    size: usize,
-    mode: usize,
-    mtime: String,
-    linkTarget: String,
-}
-
 /// Api wrapper for containers
 pub struct Containers<'d> {
     docker: &'d Docker,
@@ -614,20 +545,6 @@ impl<'d> Containers<'d> {
 // * Containers end *
 
 // * Networks start *
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Network {
-    Name: String,
-    Id: String,
-    Created: String,
-    Scope: String,
-    Driver: String,
-    EnableIPv6: bool,
-    Internal: bool,
-    Attachable: bool,
-    Ingress: bool,
-    IPAM: Value,
-    Options: Value,
-}
 
 /// Api wrapper for networks
 pub struct Networks<'d> {
@@ -671,22 +588,8 @@ impl<'d> Networks<'d> {
 // * Networks end *
 
 // * Images start *
-#[derive(Serialize, Deserialize, Debug)]
-// TODO: Rethink making this public
-pub struct ImagesJson {
-    Id: String,
-    ParentId: String,
-    RepoTags: Vec<String>,
-    RepoDigests: Vec<String>,
-    Created: u64,
-    Size: isize,
-    VirtualSize: isize,
-    SharedSize: isize,
-    Labels: Value,
-    Containers: isize,
-}
 
-/// Api wrapper for networks
+/// Api wrapper for images
 pub struct Images<'d> {
     docker: &'d Docker,
 }

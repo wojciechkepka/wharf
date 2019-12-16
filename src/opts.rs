@@ -1,6 +1,4 @@
-//! # Options
-//!
-//! Configuration builders for all methods are found here.
+//! Configuration builders for all methods.
 //!
 //! You can easily chain options by doing:
 //! ```ignore

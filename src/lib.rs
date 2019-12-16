@@ -39,6 +39,7 @@
 extern crate failure;
 pub mod api;
 pub mod opts;
+pub mod result;
 use crate::api::{Container, Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;

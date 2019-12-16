@@ -5,7 +5,7 @@
 [![Docs](https://img.shields.io/badge/docs-master-brightgreen)](https://docs.rs/wharf)
 
 Fully asynchronous docker api library written in Rust.
-## Examples
+## Example
 ```rust
 use failure::Error;
 use wharf::Docker;
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Error> {
     // iterate over containers
     for container in containers.list(opts).await? {
         // access container metadata
-        println!("{:?}", container.data().unwrap());
+        println!("{:?}", container.inspect().unwrap());
         // manipulate container
         container.stop().await?;
         container.start().await?;

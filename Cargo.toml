@@ -1,13 +1,13 @@
 [package]
 name = "wharf"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
 edition = "2018"
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/wojciechkepka/wharf"
 repository = "https://github.com/wojciechkepka/wharf"
-keywords = ["docker", "api",]
+keywords = ["docker", "api"]
 description = "Asynchronous docker api library"
 categories = ["api-bindings"]
 

@@ -127,6 +127,44 @@ pub struct ImageData {
     pub containers: i64,
 }
 
+/// Detailed Image data returned from image.inspect()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageInspect {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Container")]
+    pub container: String,
+    #[serde(rename = "Comment")]
+    pub comment: String,
+    #[serde(rename = "Os")]
+    pub os: String,
+    #[serde(rename = "Architecture")]
+    pub architecture: String,
+    #[serde(rename = "Parent")]
+    pub parent: String,
+    #[serde(rename = "ContainerConfig")]
+    pub container_config: Value,
+    #[serde(rename = "DockerVersion")]
+    pub docker_version: String,
+    #[serde(rename = "VirtualSize")]
+    pub virtual_size: i64,
+    #[serde(rename = "Size")]
+    pub size: i64,
+    #[serde(rename = "Author")]
+    pub author: String,
+    #[serde(rename = "Created")]
+    pub created: String,
+    #[serde(rename = "GraphDriver")]
+    pub graph_driver: Value,
+    #[serde(rename = "RepoDigests")]
+    pub repo_digests: Vec<String>,
+    #[serde(rename = "RepoTags")]
+    pub repo_tags: Vec<String>,
+    #[serde(rename = "Config")]
+    pub config: Value,
+    #[serde(rename = "RootFS")]
+    pub root_fs: Value,
+}
 /// Information about a process returned from container.ps()  
 #[derive(Debug)]
 pub struct Process {

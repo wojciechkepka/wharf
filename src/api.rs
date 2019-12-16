@@ -707,5 +707,25 @@ impl<'d> Images<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Inspect an image  
+    /// Return low-level information about an image.
+    pub async fn inspect(&self, image: &str) -> Result<ImageInspect, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join(&format!("images/{}/json", image))?)
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
 }
 // * Images End *

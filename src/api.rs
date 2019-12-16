@@ -1,7 +1,7 @@
-//! The best place to get handles to all parts of docker is the Docker struct itself.
-//! From there it's easy to interact with subparts like Containers, Networks or Images.
+//!API interfaces for docker subparts like Containers, Images or Networks.
 //!
-//! ## Examples
+//! ## Example
+//! - Spawn a handle directly from docker instance
 //! ```ignore
 //! use failure::Error;
 //! use wharf::Docker;
@@ -9,12 +9,15 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Error>{
 //!     let d = Docker::new("http://0.0.0.0:1337")?;
-//!     // Spawn a handle to docker containers
+//!     // Containers
 //!     let containers = d.containers();
-//!     // Spawn a handle to docker images
+//!     // Images
 //!     let images = d.images();
-//!     // Spawn a handle to docker networks
+//!     // Networks
 //!     let networks = d.networks();
+//!     // Specific container
+//!     let container = d.container("container-id-or-name");
+//!
 //! }
 //! ```
 extern crate base64;
@@ -100,7 +103,7 @@ struct ContainerProcessesJson {
 }
 #[derive(Debug)]
 pub struct Process {
-    info: HashMap<String, String>,
+    pub info: HashMap<String, String>,
 }
 impl Process {
     fn new(titles: &[String], processes: &[String]) -> Self {
@@ -114,7 +117,7 @@ impl Process {
     }
 }
 #[derive(Deserialize, Debug, Serialize)]
-pub struct InspectContainerResponse {
+pub struct InspectContainer {
     AppArmorProfile: String,
     Args: Value,
     Config: Value,
@@ -157,12 +160,34 @@ macro_rules! post_container {
         }
     }};
 }
+
+/// Api wrapper for a single container
+/// # Example
+/// ```ignore
+/// let d = Docker::new("0.0.0.0:1234")?;
+///
+/// let mut container = d.container("boring_johnny");
+/// container.rename("new_name").await?;
+/// container.start().await?;
+///
+/// // Get details about a container
+/// let container_data = container.inspect().await?;
+/// // List processes
+/// for process in container.ps("afx").await? {
+///     println!("{:?}", process);
+/// }
+/// // Get info about `/etc` file or directory
+/// println!("{:?}", container.file_info("/etc").await?);
+///
+/// container.stop().await?;
+/// ```
 #[derive(Debug)]
 pub struct Container<'d> {
     docker: &'d Docker,
     id: String,
 }
 impl<'d> Container<'d> {
+    /// new API interface for containers
     pub fn new<S: Into<String>>(docker: &'d Docker, id: S) -> Container<'d> {
         Container {
             docker,
@@ -217,7 +242,7 @@ impl<'d> Container<'d> {
     }
     /// Inspect a container
     /// Return low-level information about a container.
-    pub async fn inspect(&self) -> Result<InspectContainerResponse, Error> {
+    pub async fn inspect(&self) -> Result<InspectContainer, Error> {
         let res = self
             .docker
             .client
@@ -232,7 +257,7 @@ impl<'d> Container<'d> {
         let text = res.text().await?;
         match status {
             200 => {
-                let data: InspectContainerResponse = serde_json::from_str(&text)?;
+                let data: InspectContainer = serde_json::from_str(&text)?;
                 Ok(data)
             }
             404 => err_msg!(text, "no such container"),
@@ -269,7 +294,7 @@ impl<'d> Container<'d> {
         )?)
     }
     /// Rename container
-    pub async fn rename(&self, new_name: &str) -> Result<(), Error> {
+    pub async fn rename(&mut self, new_name: &str) -> Result<(), Error> {
         let res = self
             .docker
             .client
@@ -281,10 +306,15 @@ impl<'d> Container<'d> {
             .query(&[("name", new_name)])
             .send()
             .await?;
+        debug!("{:?}", res);
         let status = res.status().as_u16();
         let text = res.text().await?;
+        debug!("{}", text);
         match status {
-            204 => Ok(()),
+            204 => {
+                self.id = new_name.to_string();
+                Ok(())
+            },
             404 => err_msg!(text, "no such container"),
             409 => err_msg!(text, "name already in use"),
             500 => err_msg!(text, "server error"),
@@ -336,7 +366,7 @@ impl<'d> Container<'d> {
             _ => err_msg!(text, ""),
         }
     }
-    /// Get a tar archive of a resource in the filesystem of container id
+    /// Get a tar archive of a resource in the filesystem of container id  
     /// Returns URL to the archived resource
     pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<Url, Error> {
         let res = self
@@ -361,7 +391,7 @@ impl<'d> Container<'d> {
             _ => err_msg!(text, ""),
         }
     }
-    /// Upload a tar archive to be extracted to a path in the filesystem of container id.
+    /// Upload a tar archive to be extracted to a path in the filesystem of container id.  
     /// The input file must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz.
     pub async fn upload_archive(
         &self,
@@ -394,7 +424,7 @@ impl<'d> Container<'d> {
             _ => err_msg!(text, ""),
         }
     }
-    /// Get information about files in a container
+    /// Get information about files in a container  
     /// A response header X-Docker-Container-Path-Stat is return containing a base64 - encoded JSON object with some filesystem header information about the path.
     pub async fn file_info<P: AsRef<Path>>(&self, path: P) -> Result<FileInfo, Error> {
         let res = self
@@ -431,7 +461,7 @@ impl<'d> Container<'d> {
             }
         }
     }
-    /// List processes running inside a container
+    /// List processes running inside a container  
     /// On Unix systems, this is done by running the ps command. This endpoint is not supported on Windows.
     pub async fn ps<S: AsRef<str>>(&self, ps_args: S) -> Result<Vec<Process>, Error> {
         let res = self
@@ -552,6 +582,8 @@ impl<'d> Container<'d> {
         }
     }
 }
+
+// TODO: add some public api for this
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileInfo {
     name: String,
@@ -634,13 +666,16 @@ pub struct Network {
     Options: Value,
 }
 
+/// Api wrapper for networks
 pub struct Networks<'d> {
     docker: &'d Docker,
 }
 impl<'d> Networks<'d> {
+    /// new API interface for networks
     pub fn new(docker: &'d Docker) -> Networks {
         Networks { docker }
     }
+    /// List all networks
     pub async fn list(&self) -> Result<Vec<Network>, Error> {
         let res = self
             .docker
@@ -687,10 +722,12 @@ pub struct ImagesJson {
     Containers: isize,
 }
 
+/// Api wrapper for networks
 pub struct Images<'d> {
     docker: &'d Docker,
 }
 impl<'d> Images<'d> {
+    /// new API interface for images
     pub fn new(docker: &'d Docker) -> Self {
         Images { docker }
     }
@@ -803,7 +840,6 @@ impl<'d> Images<'d> {
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
         }
-        
     }
 }
 // * Images End *

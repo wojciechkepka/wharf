@@ -1,6 +1,6 @@
 //! # Wharf ⚓🦀
 //!
-//! ## Examples
+//! ## Example
 //! ```ignore
 //! use failure::Error;
 //! use wharf::Docker;
@@ -17,12 +17,9 @@
 //!     opts.all(true);
 //!     // iterate over containers
 //!     for container in containers.list(opts).await? {
-//!         // access container metadata
-//!         println!("{:?}", container.data().unwrap());
 //!         // manipulate container
-//!         container.stop().await?;
 //!         container.start().await?;
-//!         container.rename("alpine1").await?;
+//!         container.stop().await?;
 //!     }
 //!     // Create a container
 //!     let mut container_opts = ContainerBuilderOpts::new();
@@ -50,7 +47,6 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 /// The main interface to interact with an instance of Docker.
-/// To interact with subelements of docker like: Containers, Images, Networks or Volumes.
 #[derive(Debug)]
 pub struct Docker {
     client: reqwest::Client,
@@ -58,8 +54,8 @@ pub struct Docker {
 }
 
 impl Docker {
-    /// Creates a new instance of docker interface
-    /// may return an error in case of a bad url.
+    /// Creates a new instance of docker interface.  
+    /// May return an error in case of a bad url.
     pub fn new(url: &str) -> Result<Self, Error> {
         let c = reqwest::ClientBuilder::new();
 
@@ -85,7 +81,7 @@ impl Docker {
         Networks::new(&self)
     }
 
-    /// Get auth token for authorized operations
+    /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
         let res = self

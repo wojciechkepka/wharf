@@ -165,6 +165,24 @@ pub struct ImageInspect {
     #[serde(rename = "RootFS")]
     pub root_fs: Value,
 }
+
+/// The history of image usage returned from image.history()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageHistory {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Created")]
+    pub created: i64,
+    #[serde(rename = "CreatedBy")]
+    pub created_by: String,
+    #[serde(rename = "Tags")]
+    pub tags: Value,
+    #[serde(rename = "Size")]
+    pub size: i64,
+    #[serde(rename = "Comment")]
+    pub comment: String,
+}
+
 /// Information about a process returned from container.ps()  
 #[derive(Debug)]
 pub struct Process {

@@ -738,5 +738,26 @@ impl<'d> Images<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Remove an image
+    pub async fn remove(&self, image: &str, force: bool, no_prune: bool) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .delete(self.docker.url.join(&format!("images/{}", image))?)
+            .query(&[("force", force), ("noprune", no_prune)])
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(()),
+            404 => err_msg!(text, "no such image"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
 }
 // * Images End *

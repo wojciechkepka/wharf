@@ -420,6 +420,86 @@ impl AuthOpts {
     }
 }
 
+/// Options for executing commands
+#[derive(Clone, Default)]
+pub struct ExecOpts {
+    opts: HashMap<&'static str, Value>,
+}
+
+impl ExecOpts {
+    pub fn new() -> Self {
+        ExecOpts::default()
+    }
+    /// Attach to stdin of the exec command.
+    pub fn attach_stdin(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "AttachStdin", attach);
+        self
+    }
+    /// Attach to stdout of the exec command.
+    pub fn attach_stdout(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "AttachStdout", attach);
+        self
+    }
+    /// Attach to stderr of the exec command.
+    pub fn attach_stderr(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "AttachStderr", attach);
+        self
+    }
+    /// Detach from the command.
+    pub fn detach(&mut self, detach: bool) -> &mut Self {
+        insert!(self, "detach", detach);
+        self
+    }
+    /// Allocate a pseudo-TTY.
+    pub fn tty(&mut self, tty: bool) -> &mut Self {
+        insert!(self, "Tty", tty);
+        self
+    }
+    /// A list of environment variables in the form ["VAR=value", ...].
+    pub fn env(&mut self, env: &[String]) -> &mut Self {
+        insert!(self, "Env", env);
+        self
+    }
+    /// Command to run, as a string or array of strings.
+    pub fn cmd(&mut self, cmd: &[String]) -> &mut Self {
+        insert!(self, "Cmd", cmd);
+        self
+    }
+    /// Runs the exec process with extended privileges.
+    pub fn privileged(&mut self, allow: bool) -> &mut Self {
+        insert!(self, "Privileged", allow);
+        self
+    }
+    /// The user, and optionally, group to run the exec process inside the container.  
+    /// Format is one of: user, user:group, uid, or uid:gid.
+    pub fn user(&mut self, user: &str) -> &mut Self {
+        insert!(self, "User", user);
+        self
+    }
+    /// The working directory for the exec process inside the container.
+    pub fn working_dir(&mut self, dir: &str) -> &mut Self {
+        insert!(self, "WorkingDir", dir);
+        self
+    }
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+    pub(crate) fn _tty(&self) -> bool {
+        if let Some(tty) = self.opts.get("Tty") {
+            serde_json::from_value(tty.clone()).unwrap()
+        } else {
+            false
+        }
+    }
+    pub(crate) fn _detach(&self) -> bool {
+        if let Some(detach) = self.opts.get("detach") {
+            serde_json::from_value(detach.clone()).unwrap()
+        } else {
+            true
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -623,6 +703,40 @@ mod tests {
             .iter()
             .map(|(k, v)| {
                 let val = query.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
+    }
+    #[test]
+    fn exec_opts_work() {
+        let opts_j = json!({
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": true,
+            "Env": ["TEST=var"],
+            "Cmd": ["/bin/echo", "this definitely works"],
+            "Privileged": false,
+            "User": "test_user",
+            "WorkingDir": "/tmp/dir"
+        });
+
+        let mut opts = ExecOpts::new();
+        opts.attach_stdin(false)
+            .attach_stdout(true)
+            .attach_stderr(true)
+            .tty(true)
+            .env(&["TEST=var".into()])
+            .cmd(&["/bin/echo".into(), "this definitely works".into()])
+            .privileged(false)
+            .user("test_user")
+            .working_dir("/tmp/dir");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = opts_j.get(k);
                 assert!(val.is_some());
                 assert_eq!(val.unwrap(), v);
             })

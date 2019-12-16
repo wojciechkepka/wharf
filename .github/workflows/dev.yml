@@ -1,0 +1,23 @@
+name: Wharf devel
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2-beta
+      with:
+        repository: 'wojciechkepka/wharf'
+        ref: 'dev'
+      
+    - name: Build
+      run: cargo build --verbose
+      
+    - name: Run tests
+      run: cargo test --verbose
+      

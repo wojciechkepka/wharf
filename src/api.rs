@@ -759,5 +759,25 @@ impl<'d> Images<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Import images  
+    /// Load a set of images and tags into a repository.
+    pub async fn import(&self, archive: &[u8]) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("images/load")?)
+            .body(archive.to_vec())
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(()),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
 }
 // * Images End *

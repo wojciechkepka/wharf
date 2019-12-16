@@ -779,5 +779,31 @@ impl<'d> Images<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Tag an image so that it becomes part of a repository.  
+    /// **image** - name or id of image in the form: *someimage:sometag*  
+    /// **repo** - The repository to tag in. For example, *someuser/someimage*  
+    /// **tag** - The name of the new tag.
+    pub async fn tag(&self, image: &str, repo: &str, tag: &str) -> Result<(), Error> {
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join(&format!("images/{}/tag", image))?)
+            .query(&json!({"repo": repo, "tag": tag}))
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            201 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
+            404 => err_msg!(text, "no such image"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+        
+    }
 }
 // * Images End *

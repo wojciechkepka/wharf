@@ -43,7 +43,7 @@ macro_rules! err_msg {
 
 // * Containers start *
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct ContainerJson {
+struct ContainerJson {
     Id: String,
     Names: Vec<String>,
     Image: String,
@@ -57,44 +57,6 @@ pub struct ContainerJson {
     HostConfig: Value,
     NetworkSettings: Value,
     Mounts: Vec<Value>,
-}
-impl ContainerJson {
-    pub fn id(&self) -> &str {
-        &self.Id
-    }
-    pub fn names(&self) -> &Vec<String> {
-        &self.Names
-    }
-    pub fn image(&self) -> &str {
-        &self.Image
-    }
-    pub fn image_id(&self) -> &str {
-        &self.ImageID
-    }
-    pub fn command(&self) -> &str {
-        &self.Command
-    }
-    pub fn created(&self) -> usize {
-        self.Created
-    }
-    pub fn status(&self) -> &str {
-        &self.Status
-    }
-    pub fn ports(&self) -> &Vec<Value> {
-        &self.Ports
-    }
-    pub fn labels(&self) -> &Value {
-        &self.Labels
-    }
-    pub fn host_config(&self) -> &Value {
-        &self.HostConfig
-    }
-    pub fn network_settings(&self) -> &Value {
-        &self.NetworkSettings
-    }
-    pub fn mounts(&self) -> &Vec<Value> {
-        &self.Mounts
-    }
 }
 #[derive(Serialize, Deserialize)]
 struct ContainerProcessesJson {
@@ -116,6 +78,7 @@ impl Process {
         }
     }
 }
+/// Result data of container.inspect()
 #[derive(Deserialize, Debug, Serialize)]
 pub struct InspectContainer {
     AppArmorProfile: String,
@@ -709,6 +672,7 @@ impl<'d> Networks<'d> {
 
 // * Images start *
 #[derive(Serialize, Deserialize, Debug)]
+// TODO: Rethink making this public
 pub struct ImagesJson {
     Id: String,
     ParentId: String,
@@ -733,6 +697,7 @@ impl<'d> Images<'d> {
     }
     /// List all images
     pub async fn list(&self) -> Result<Vec<ImagesJson>, Error> {
+        // FIXME later
         let res = self
             .docker
             .client

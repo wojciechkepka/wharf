@@ -495,18 +495,20 @@ impl<'d> Container<'d> {
     /// Exec a command
     pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
         let exec_id = self.create_exec_instance(opts).await?;
-        self.start_exec_instance(exec_id.trim_matches('"'), opts._detach(), opts._tty()).await
+        self.start_exec_instance(exec_id.trim_matches('"'), opts._detach(), opts._tty())
+            .await
     }
     // Starts the exec instance
-    async fn start_exec_instance(&self, id: &str, detach: bool, tty: bool) -> Result<String, Error> {
+    async fn start_exec_instance(
+        &self,
+        id: &str,
+        detach: bool,
+        tty: bool,
+    ) -> Result<String, Error> {
         let res = self
             .docker
             .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("exec/{}/start", id))?,
-            )
+            .post(self.docker.url.join(&format!("exec/{}/start", id))?)
             .json(&json!({"Detach": detach, "Tty": tty}))
             .send()
             .await?;
@@ -539,18 +541,15 @@ impl<'d> Container<'d> {
         let text = res.text().await?;
         debug!("{}", text);
         match status {
-            201 => {
-                match serde_json::from_str::<Value>(&text)?.get("Id") {
-                    Some(id) => Ok(id.to_string()),
-                    _ => Err(format_err!("there was no field Id in the response body.")),
-                }
-            }
+            201 => match serde_json::from_str::<Value>(&text)?.get("Id") {
+                Some(id) => Ok(id.to_string()),
+                _ => Err(format_err!("there was no field Id in the response body.")),
+            },
             404 => err_msg!(text, "no such container"),
             409 => err_msg!(text, "container is paused"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
         }
-        
     }
 }
 #[derive(Serialize, Deserialize, Debug)]

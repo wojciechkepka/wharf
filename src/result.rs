@@ -183,6 +183,16 @@ pub struct ImageHistory {
     pub comment: String,
 }
 
+/// Image search result from images.search()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageMatch {
+    pub description: String,
+    pub is_official: bool,
+    pub is_automated: bool,
+    pub name: String,
+    pub star_count: i64,
+}
+
 /// Information about a process returned from container.ps()  
 #[derive(Debug)]
 pub struct Process {

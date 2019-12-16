@@ -747,5 +747,30 @@ impl<'d> Images<'d> {
             _ => err_msg!(text, ""),
         }
     }
+    /// Search for images on Docker Hub
+    pub async fn search(&self, term: &str, limit: u64, filters: String) -> Result<Vec<ImageMatch>, Error> {
+        // TODO change filters type to some type of hash map and encode the json as parameter
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("images/search")?)
+            .query(&json!({
+                "term": term,
+                "limit": limit, 
+                "filters": filters
+            }))
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
 }
 // * Images End *

@@ -26,10 +26,6 @@ pub struct ContainerData {
     pub ports: Vec<Value>,
     #[serde(rename = "Labels")]
     pub labels: Value,
-    #[serde(rename = "SizeRw")]
-    pub size_rw: i64,
-    #[serde(rename = "SizeRootFs")]
-    pub size_root_fs: i64,
     #[serde(rename = "HostConfig")]
     pub host_config: Value,
     #[serde(rename = "NetworkSettings")]
@@ -191,6 +187,24 @@ pub struct ImageMatch {
     pub is_automated: bool,
     pub name: String,
     pub star_count: i64,
+}
+
+// Actual output from images.prune()
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct ImagesDeleteOut {
+    #[serde(rename = "ImagesDeleted")]
+    pub images_deleted: Vec<ImagesDeleted>,
+    #[serde(rename = "SpaceReclaimed")]
+    pub space_reclaimed: i64,
+}
+
+/// Deleted images from images.prune()
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ImagesDeleted {
+    #[serde(rename = "Untagged")]
+    pub untagged: String,
+    #[serde(rename = "Deleted")]
+    pub deleted: String,
 }
 
 /// Information about a process returned from container.ps()  

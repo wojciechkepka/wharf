@@ -228,10 +228,10 @@ impl<'d> Container<'d> {
         let res = self
             .docker
             .client
-            .post(
+            .delete(
                 self.docker
                     .url
-                    .join(&format!("containers/{}/rename", self.id))?,
+                    .join(&format!("containers/{}", self.id))?,
             )
             .query(opts.opts())
             .send()
@@ -767,6 +767,29 @@ impl<'d> Images<'d> {
         debug!("{}", text);
         match status {
             200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Delete unused images
+    pub async fn prune(&self, filters: String) -> Result<ImagesDeleted, Error> {
+        // TODO change filters type to some type of hash map and encode the json as parameter
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("images/prune")?)
+            .query(&json!({
+                "filters": filters
+            }))
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text).unwrap_or_default()),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),

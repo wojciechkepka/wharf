@@ -319,6 +319,125 @@ impl ContainerBuilderOpts {
     }
 }
 
+/// Options for building an image
+#[derive(Default)]
+pub struct ImageBuilderOpts {
+    opts: HashMap<&'static str, Value>,
+}
+impl ImageBuilderOpts {
+    /// Path within the build context to the Dockerfile.  
+    /// This is ignored if remote is specified and points to an external Dockerfile.
+    pub fn dockerfile(&mut self, path: String) -> &mut Self {
+        insert!(self, "dockerfile", path);
+        self
+    }
+    /// A name and optional tag to apply to the image in the name:tag format.  
+    /// If you omit the tag the default latest value is assumed.
+    pub fn name(&mut self, name: String) -> &mut Self {
+        insert!(self, "t", name);
+        self
+    }
+    /// A Git repository URI or HTTP/HTTPS context URI.  
+    /// If the URI points to a single text file, the file’s contents are placed into a file called Dockerfile and the image is built from that file.  
+    /// If the URI points to a tarball, the file is downloaded by the daemon and the contents therein used as the context for the build.  
+    /// If the URI points to a tarball and the dockerfile parameter is also specified, there must be a file with the corresponding path inside the tarball.
+    pub fn remote(&mut self, repo: &str) -> &mut Self {
+        insert!(self, "remote", repo);
+        self
+    }
+    /// Extra hosts to add to /etc/hosts
+    pub fn extra_hosts(&mut self, hosts: String) -> &mut Self {
+        insert!(self, "extrahosts", hosts);
+        self
+    }
+    /// Suppress verbose build output.
+    pub fn quiet(&mut self, q: bool) -> &mut Self {
+        insert!(self, "q", q);
+        self
+    }
+    /// Do not use the cache when building the image.
+    pub fn no_cache(&mut self, no_cache: bool) -> &mut Self {
+        insert!(self, "no_cache", no_cache);
+        self
+    }
+    /// Remove intermediate containers after a successful build.
+    pub fn rm(&mut self, rm: bool) -> &mut Self {
+        insert!(self, "rm", rm);
+        self
+    }
+    /// Always remove intermediate containers, even upon failure.
+    pub fn forcerm(&mut self, force: bool) -> &mut Self {
+        insert!(self, "forcerm", force);
+        self
+    }
+    /// Set memory limit for build.
+    pub fn memory(&mut self, limit: u64) -> &mut Self {
+        insert!(self, "memory", limit);
+        self
+    }
+    /// Total memory (memory + swap). Set as -1 to disable swap.
+    pub fn mem_swap(&mut self, swap: u64) -> &mut Self {
+        insert!(self, "memswap", swap);
+        self
+    }
+    /// CPU shares (relative weight).
+    pub fn cpu_shares(&mut self, shares: u64) -> &mut Self {
+        insert!(self, "cpushares", shares);
+        self
+    }
+    /// CPUs in which to allow execution (e.g., 0-3, 0,1).
+    pub fn cpusetcpus(&mut self, setcpus: String) -> &mut Self {
+        insert!(self, "cpusetcpus", setcpus);
+        self
+    }
+    /// The length of a CPU period in microseconds.
+    pub fn cpu_period(&mut self, period: u64) -> &mut Self {
+        insert!(self, "cpuperiod", period);
+        self
+    }
+    /// Microseconds of CPU time that the container can get in a CPU period.
+    pub fn cpu_quota(&mut self, quota: u64) -> &mut Self {
+        insert!(self, "cpuquota", quota);
+        self
+    }
+    /// JSON map of string pairs for build-time variables. Users pass these values at build-time.  
+    /// Docker uses the buildargs as the environment context for commands run via the Dockerfile RUN instruction, or for variable expansion in other Dockerfile instructions. This is not meant for passing secret values.
+    pub fn build_args(&mut self, args: HashMap<&str, &str>) -> &mut Self {
+        insert!(self, "build_args", args);
+        self
+    }
+    /// Size of /dev/shm in bytes. The size must be greater than 0. If omitted the system uses 64MB.
+    pub fn shmsize(&mut self, size: u64) -> &mut Self {
+        insert!(self, "shmsize", size);
+        self
+    }
+    /// Arbitrary key/value labels to set on the image
+    pub fn labels(&mut self, labels: HashMap<&str, &str>) -> &mut Self {
+        insert!(self, "labels", labels);
+        self
+    }
+    /// Sets the networking mode for the run commands during build. Supported standard values are: bridge, host, none, and container:<name|id>.  
+    /// Any other value is taken as a custom network's name to which this container should connect to.
+    pub fn network_mode(&mut self, mode: &str) -> &mut Self {
+        insert!(self, "networkmode", mode);
+        self
+    }
+    /// Platform in the format os[/arch[/variant]]
+    pub fn platform(&mut self, p: &str) -> &mut Self {
+        insert!(self, "platform", p);
+        self
+    }
+    /// Target build stage
+    pub fn target(&mut self, t: &str) -> &mut Self {
+        insert!(self, "target", t);
+        self
+    }
+    /// Get opts
+    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+
 /// Options for creating image
 #[derive(Default)]
 pub struct CreateImageOpts {

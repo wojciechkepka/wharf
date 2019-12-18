@@ -26,10 +26,6 @@ pub struct ContainerData {
     pub ports: Vec<Value>,
     #[serde(rename = "Labels")]
     pub labels: Value,
-    #[serde(rename = "SizeRw")]
-    pub size_rw: i64,
-    #[serde(rename = "SizeRootFs")]
-    pub size_root_fs: i64,
     #[serde(rename = "HostConfig")]
     pub host_config: Value,
     #[serde(rename = "NetworkSettings")]
@@ -125,6 +121,90 @@ pub struct ImageData {
     pub labels: Value,
     #[serde(rename = "Containers")]
     pub containers: i64,
+}
+
+/// Detailed Image data returned from image.inspect()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageInspect {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Container")]
+    pub container: String,
+    #[serde(rename = "Comment")]
+    pub comment: String,
+    #[serde(rename = "Os")]
+    pub os: String,
+    #[serde(rename = "Architecture")]
+    pub architecture: String,
+    #[serde(rename = "Parent")]
+    pub parent: String,
+    #[serde(rename = "ContainerConfig")]
+    pub container_config: Value,
+    #[serde(rename = "DockerVersion")]
+    pub docker_version: String,
+    #[serde(rename = "VirtualSize")]
+    pub virtual_size: i64,
+    #[serde(rename = "Size")]
+    pub size: i64,
+    #[serde(rename = "Author")]
+    pub author: String,
+    #[serde(rename = "Created")]
+    pub created: String,
+    #[serde(rename = "GraphDriver")]
+    pub graph_driver: Value,
+    #[serde(rename = "RepoDigests")]
+    pub repo_digests: Vec<String>,
+    #[serde(rename = "RepoTags")]
+    pub repo_tags: Vec<String>,
+    #[serde(rename = "Config")]
+    pub config: Value,
+    #[serde(rename = "RootFS")]
+    pub root_fs: Value,
+}
+
+/// The history of image usage returned from image.history()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageHistory {
+    #[serde(rename = "Id")]
+    pub id: String,
+    #[serde(rename = "Created")]
+    pub created: i64,
+    #[serde(rename = "CreatedBy")]
+    pub created_by: String,
+    #[serde(rename = "Tags")]
+    pub tags: Value,
+    #[serde(rename = "Size")]
+    pub size: i64,
+    #[serde(rename = "Comment")]
+    pub comment: String,
+}
+
+/// Image search result from images.search()
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageMatch {
+    pub description: String,
+    pub is_official: bool,
+    pub is_automated: bool,
+    pub name: String,
+    pub star_count: i64,
+}
+
+// Actual output from images.prune()
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct ImagesDeleteOut {
+    #[serde(rename = "ImagesDeleted")]
+    pub images_deleted: Vec<ImagesDeleted>,
+    #[serde(rename = "SpaceReclaimed")]
+    pub space_reclaimed: i64,
+}
+
+/// Deleted images from images.prune()
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ImagesDeleted {
+    #[serde(rename = "Untagged")]
+    pub untagged: String,
+    #[serde(rename = "Deleted")]
+    pub deleted: String,
 }
 
 /// Information about a process returned from container.ps()  

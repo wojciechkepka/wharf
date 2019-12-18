@@ -228,11 +228,7 @@ impl<'d> Container<'d> {
         let res = self
             .docker
             .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/rename", self.id))?,
-            )
+            .delete(self.docker.url.join(&format!("containers/{}", self.id))?)
             .query(opts.opts())
             .send()
             .await?;
@@ -703,6 +699,121 @@ impl<'d> Images<'d> {
             400 => err_msg!(text, "bad parameter"),
             404 => err_msg!(text, "no such image"),
             409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Inspect an image  
+    /// Return low-level information about an image.
+    pub async fn inspect(&self, image: &str) -> Result<ImageInspect, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join(&format!("images/{}/json", image))?)
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Get the history of an image  
+    /// Return parent layers of an image
+    pub async fn history(&self, image: &str) -> Result<Vec<ImageHistory>, Error> {
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join(&format!("images/{}/history", image))?)
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Search for images on Docker Hub
+    pub async fn search(
+        &self,
+        term: &str,
+        limit: u64,
+        filters: String,
+    ) -> Result<Vec<ImageMatch>, Error> {
+        // TODO change filters type to some type of hash map and encode the json as parameter
+        let res = self
+            .docker
+            .client
+            .get(self.docker.url.join("images/search")?)
+            .query(&json!({
+                "term": term,
+                "limit": limit,
+                "filters": filters
+            }))
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Delete unused images
+    pub async fn prune(&self, filters: &str) -> Result<ImagesDeleted, Error> {
+        // TODO change filters type to some type of hash map and encode the json as parameter
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("images/prune")?)
+            .query(&json!({ "filters": filters }))
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(serde_json::from_str(&text).unwrap_or_default()),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
+    }
+    /// Build an image from a tar archive with a Dockerfile in it.
+    ///The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the dockerfile parameter. See the Dockerfile reference for more information.
+    //The Docker daemon performs a preliminary validation of the Dockerfile before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
+    pub async fn build(&self, opts: &ImageBuilderOpts) -> Result<(), Error> {
+        // TODO add authentication and registry passing
+        let res = self
+            .docker
+            .client
+            .post(self.docker.url.join("/build")?)
+            .query(opts.opts())
+            .header("Content-type", "application/x-tar")
+            .send()
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = res.text().await?;
+        debug!("{}", text);
+        match status {
+            200 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
         }

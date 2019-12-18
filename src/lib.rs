@@ -40,29 +40,28 @@ extern crate failure;
 pub mod api;
 pub mod opts;
 pub mod result;
-use crate::api::{Container, Containers, Images, Networks};
 use crate::opts::*;
 use failure::Error;
 use log::*;
 use serde::{Deserialize, Serialize};
-use url::Url;
+use hyper::{Uri, client::HttpConnector, Request, Response, Body, body::HttpBody as _, Method};
+use http::uri::PathAndQuery;
+use std::str;
 
 /// The main interface to interact with an instance of Docker.
 #[derive(Debug)]
 pub struct Docker {
-    client: reqwest::Client,
-    url: Url,
+    client: hyper::Client<HttpConnector>,
+    url: Uri,
 }
 
 impl Docker {
     /// Creates a new instance of docker interface.  
     /// May return an error in case of a bad url.
     pub fn new(url: &str) -> Result<Self, Error> {
-        let c = reqwest::ClientBuilder::new();
-
         Ok(Docker {
-            url: Url::parse(url)?,
-            client: c.no_proxy().build()?,
+            url: url.parse()?,
+            client: hyper::Client::new(),
         })
     }
     /// Get reference to a specific container interface
@@ -85,25 +84,22 @@ impl Docker {
     /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
-        let res = self
-            .client
-            .post(self.url.join("/auth")?)
-            .json(opts.opts())
-            .send()
-            .await?;
+        let mut uri = self.url.clone().into_parts();
+        uri.path_and_query = Some(PathAndQuery::from_static("/auth"));
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(Uri::from_parts(uri)?)
+            .body(Body::from(serde_json::to_string(opts.opts())?))
+            .expect("err");
+        let mut res = self.client.request(req).await?;
         debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
-        match status {
-            200 => {
-                let msg: AuthMsg = serde_json::from_str(&text)?;
-                Ok(msg.token())
-            }
-            204 => Ok("".to_string()),
-            500 => Err(format_err!("server error")),
-            _ => Err(format_err!("{}", text)),
+        while let Some(chunk) = res.data().await {
+            let chunk = chunk?;
+            println!("{}", str::from_utf8(&chunk)?);
         }
+
+        Ok("".into())
     }
 }
 

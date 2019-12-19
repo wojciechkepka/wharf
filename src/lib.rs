@@ -35,9 +35,8 @@
 //! ```
 
 #![allow(non_snake_case)]
-#[macro_use]
-extern crate failure;
-pub mod api;
+#[macro_use] extern crate failure;
+#[macro_use] pub mod api;
 pub mod opts;
 pub mod result;
 use crate::api::*;
@@ -119,7 +118,7 @@ impl Docker {
     }
     /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
-    pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
+    pub async fn authenticate(&self, opts: &AuthOpts) -> Result<String, Error> {
         let mut res = self
             .req(
                 Method::POST,
@@ -133,8 +132,15 @@ impl Docker {
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(text.as_ref())?);
-
-        Ok("".into())
+        match status {
+            200 => {
+                let msg: AuthMsg = serde_json::from_slice(&text)?;
+                Ok(msg.token())
+            }
+            204 => Ok("".to_string()),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, "unknown error"),
+        }
     }
 }
 

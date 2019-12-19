@@ -480,7 +480,7 @@ impl<'d> Networks<'d> {
     }
     /// List all networks
     pub async fn list(&self) -> Result<Vec<NetworkData>, Error> {
-        // TODO add ListImageOpts
+        // TODO add universal ListOpts for all listing methods
         let res = self
             .docker
             .req(Method::GET, "/networks".into(), None, Body::from(""), None)
@@ -535,43 +535,179 @@ impl<'d> Images<'d> {
     }
     /// List all images
     pub async fn list(&self) -> Result<Vec<ImageData>, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                "/images/json".into(),
+                None,
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Pulls an image from registry  
     /// WARNING!  
     /// not specyfying tag will pull all tags of image
     pub async fn pull(&self, image: &str, tag: &str, auth: &AuthOpts) -> Result<(), Error> {
-        unimplemented!()
+        let mut opts = CreateImageOpts::new();
+        opts.from_image(image).tag(tag).set_auth(&auth);
+        self.create(&opts).await
     }
     /// Create an image by either pulling it from a registry or importing it.
     pub async fn create(&self, opts: &CreateImageOpts) -> Result<(), Error> {
-        unimplemented!()
+        let mut headers = Vec::new();
+        if opts.opts().get("fromImage").is_some() {
+            headers.push(("X-Registry-Auth", opts.auth_ref().serialize()?));
+        }
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/images/create".into(),
+                None,
+                Body::from(""),
+                Some(headers),
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(()),
+            404 => err_msg!(text, "repository does not exist or no read access"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Remove an image
     pub async fn remove(&self, image: &str, force: bool, no_prune: bool) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::DELETE,
+                format!("/images/{}", image),
+                Some(format!("force={}&no_prune={}", force, no_prune)),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(()),
+            404 => err_msg!(text, "no such image"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Import images  
     /// Load a set of images and tags into a repository.
     pub async fn import(&self, archive: &[u8]) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/images/load".into(),
+                None,
+                Body::from(archive.to_vec()),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(()),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Tag an image so that it becomes part of a repository.  
     /// **image** - name or id of image in the form: *someimage:sometag*  
     /// **repo** - The repository to tag in. For example, *someuser/someimage*  
     /// **tag** - The name of the new tag.
     pub async fn tag(&self, image: &str, repo: &str, tag: &str) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/images/{}/tag", image),
+                Some(format!("repo={}&tag={}", repo, tag)),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            201 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
+            404 => err_msg!(text, "no such image"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Inspect an image  
     /// Return low-level information about an image.
     pub async fn inspect(&self, image: &str) -> Result<ImageInspect, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/images/{}/json", image),
+                None,
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Get the history of an image  
     /// Return parent layers of an image
     pub async fn history(&self, image: &str) -> Result<Vec<ImageHistory>, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/images/{}/history", image),
+                None,
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Search for images on Docker Hub
     pub async fn search(
@@ -580,17 +716,71 @@ impl<'d> Images<'d> {
         limit: u64,
         filters: String,
     ) -> Result<Vec<ImageMatch>, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                "/images/search".into(),
+                Some(format!("term={}&limit={}&filters={}", term, limit, filters)),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Delete unused images
     pub async fn prune(&self, filters: &str) -> Result<ImagesDeleted, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/images/prune".into(),
+                Some(format!("filters={}", filters)),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(serde_json::from_slice(&text).unwrap_or_default()),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Build an image from a tar archive with a Dockerfile in it.
     ///The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the dockerfile parameter. See the Dockerfile reference for more information.
     //The Docker daemon performs a preliminary validation of the Dockerfile before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
     pub async fn build(&self, opts: &ImageBuilderOpts) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/build".into(),
+                Some(opts.to_query()?),
+                Body::from(""),
+                Some(vec![("Content-type", "application/x-tar".into())]),
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(serde_json::from_slice(&text).unwrap_or_default()),
+            404 => err_msg!(text, "no such image"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 // * Images End *

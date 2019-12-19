@@ -72,6 +72,11 @@ impl DockerOpts for RmContainerOpts {
         &self.opts
     }
 }
+impl DockerOpts for ImageBuilderOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
 #[derive(Default)]
 pub(crate) struct NullOpts {
     opts: HashMap<&'static str, Value>,

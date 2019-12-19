@@ -64,23 +64,10 @@ impl Docker {
             client: hyper::Client::new(),
         })
     }
-    /// Get reference to a specific container interface
-    pub fn container(&self, id: &str) -> Container {
-        Container::new(&self, id)
-    }
-    /// Get reference to api interface of containers
-    pub fn containers(&self) -> Containers {
-        Containers::new(&self)
-    }
-    /// Get reference to api interface of images
-    pub fn images(&self) -> Images {
-        Images::new(&self)
-    }
-    /// Get reference to api interface of networks
-    pub fn networks(&self) -> Networks {
-        Networks::new(&self)
-    }
 
+    async fn req<Q, B>(&self, method: Method, path: &'static str, query: Q, body: B) where
+        Q: DockerOpts
+    {}
     /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {

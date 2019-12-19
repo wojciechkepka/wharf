@@ -480,11 +480,44 @@ impl<'d> Networks<'d> {
     }
     /// List all networks
     pub async fn list(&self) -> Result<Vec<NetworkData>, Error> {
-        unimplemented!()
+        // TODO add ListImageOpts
+        let res = self
+            .docker
+            .req(Method::GET, "/networks".into(), None, Body::from(""), None)
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     ///Remove a network
     pub async fn remove(&self, id: &str) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/networks/{}", id),
+                None,
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            403 => err_msg!(text, "operation not supported for pre-defined networks"),
+            404 => err_msg!(text, "no such network"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 // * Networks end *

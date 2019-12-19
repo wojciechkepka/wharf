@@ -14,16 +14,22 @@ macro_rules! insert {
         $s.opts.insert($k, serde_json::to_value($v).unwrap());
     };
 }
-pub(crate) trait DockerOpts {
+pub trait DockerOpts {
     fn opts(&self) -> &HashMap<&'static str, Value>;
 
     fn to_query(&self) -> Result<String, Error> {
         let q: Vec<String> = self
             .opts()
             .iter()
-            .map(|(k, v)| format!("{}={}", k, serde_json::to_string(&v).unwrap()))
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    k,
+                    serde_json::to_string(&v).unwrap().trim_matches('"')
+                )
+            })
             .collect();
-        Ok(q.join("&"))
+        Ok(format!("?{}", q.join("&")))
     }
 }
 impl DockerOpts for UploadArchiveOpts {
@@ -62,6 +68,15 @@ impl DockerOpts for ListContainersOpts {
     }
 }
 impl DockerOpts for RmContainerOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+#[derive(Default)]
+pub(crate) struct NullOpts {
+    opts: HashMap<&'static str, Value>,
+}
+impl DockerOpts for NullOpts {
     fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
     }

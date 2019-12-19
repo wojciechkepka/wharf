@@ -40,29 +40,31 @@ extern crate failure;
 pub mod api;
 pub mod opts;
 pub mod result;
-use crate::api::{Container, Containers, Images, Networks};
+use crate::api::*;
 use crate::opts::*;
 use failure::Error;
+use http::header::HeaderValue;
+use http::uri::PathAndQuery;
+use hyper::{body::to_bytes, client::HttpConnector, Body, Method, Request, Response, Uri};
 use log::*;
 use serde::{Deserialize, Serialize};
-use url::Url;
+use std::str;
+use std::str::FromStr;
 
 /// The main interface to interact with an instance of Docker.
 #[derive(Debug)]
 pub struct Docker {
-    client: reqwest::Client,
-    url: Url,
+    client: hyper::Client<HttpConnector>,
+    url: Uri,
 }
 
 impl Docker {
     /// Creates a new instance of docker interface.  
     /// May return an error in case of a bad url.
     pub fn new(url: &str) -> Result<Self, Error> {
-        let c = reqwest::ClientBuilder::new();
-
         Ok(Docker {
-            url: Url::parse(url)?,
-            client: c.no_proxy().build()?,
+            url: url.parse()?,
+            client: hyper::Client::new(),
         })
     }
     /// Get reference to a specific container interface
@@ -81,29 +83,58 @@ impl Docker {
     pub fn networks(&self) -> Networks {
         Networks::new(&self)
     }
+    async fn req(
+        &self,
+        method: Method,
+        path: String,
+        query: Option<String>,
+        body: Body,
+        headers: Option<Vec<(&'static str, String)>>,
+    ) -> Result<Response<Body>, Error> {
+        let mut uri = self.url.clone().into_parts();
+        match query {
+            Some(q) => {
+                uri.path_and_query = Some(PathAndQuery::from_str(&format!("{}?{}", path, q))?)
+            }
+            None => uri.path_and_query = Some(PathAndQuery::from_str(&path)?),
+        }
+        let uri = Uri::from_parts(uri)?;
+        let mut req = Request::builder().method(method).uri(uri);
+        if let Some(mut req_h) = req.headers_mut() {
+            if let Some(h) = headers {
+                h.iter()
+                    .map(|header| {
+                        req_h.insert(header.0, HeaderValue::from_str(&header.1).unwrap());
+                    })
+                    .collect::<()>();
+            }
+        }
+        let req = req.body(body).expect("failed to build a request");
 
+        trace!("{:?}", req);
+        let mut res = self.client.request(req).await?;
+
+        trace!("{:?}", res);
+        Ok(res)
+    }
     /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: AuthOpts) -> Result<String, Error> {
-        let res = self
-            .client
-            .post(self.url.join("/auth")?)
-            .json(opts.opts())
-            .send()
+        let mut res = self
+            .req(
+                Method::POST,
+                "/auth".into(),
+                None,
+                Body::from(serde_json::to_string(opts.opts())?),
+                None,
+            )
             .await?;
         debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
-        match status {
-            200 => {
-                let msg: AuthMsg = serde_json::from_str(&text)?;
-                Ok(msg.token())
-            }
-            204 => Ok("".to_string()),
-            500 => Err(format_err!("server error")),
-            _ => Err(format_err!("{}", text)),
-        }
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(text.as_ref())?);
+
+        Ok("".into())
     }
 }
 

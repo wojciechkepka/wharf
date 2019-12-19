@@ -14,6 +14,70 @@ macro_rules! insert {
         $s.opts.insert($k, serde_json::to_value($v).unwrap());
     };
 }
+pub trait DockerOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value>;
+
+    fn to_query(&self) -> Result<String, Error> {
+        let q: Vec<String> = self
+            .opts()
+            .iter()
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    k,
+                    serde_json::to_string(&v).unwrap().trim_matches('"')
+                )
+            })
+            .collect();
+        Ok(format!("{}", q.join("&")))
+    }
+}
+impl DockerOpts for UploadArchiveOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for AuthOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for ContainerBuilderOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for ContainerLogsOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for CreateImageOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for ExecOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for ListContainersOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for RmContainerOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+impl DockerOpts for ImageBuilderOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
+
 /// Options for uploading an archive to a container
 #[derive(Default)]
 pub struct UploadArchiveOpts {
@@ -38,9 +102,6 @@ impl UploadArchiveOpts {
     pub fn copy_uid_gid(&mut self, copy_uid_gid: &str) -> &mut Self {
         insert!(self, "copyUIDGID", copy_uid_gid);
         self
-    }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
     }
 }
 /// Options for listing containers
@@ -73,9 +134,6 @@ impl ListContainersOpts {
         insert!(self, "filters", filters);
         self
     }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
 }
 /// Options for removing a container
 #[derive(Default)]
@@ -100,9 +158,6 @@ impl RmContainerOpts {
     pub fn link(&mut self, link: bool) -> &mut Self {
         insert!(self, "link", link);
         self
-    }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
     }
 }
 /// Options for container logs
@@ -149,9 +204,6 @@ impl ContainerLogsOpts {
         insert!(self, "tail", tail);
         self
     }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
 }
 
 /// Options for building a container
@@ -164,9 +216,6 @@ impl ContainerBuilderOpts {
         ContainerBuilderOpts::default()
     }
     /// Get opts
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
     /// The hostname to use for the container, as a valid RFC 1123 hostname.
     pub fn hostname<S: Into<String> + Serialize>(&mut self, hostname: S) -> &mut Self {
         insert!(self, "Hostname", hostname);
@@ -432,10 +481,6 @@ impl ImageBuilderOpts {
         insert!(self, "target", t);
         self
     }
-    /// Get opts
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
 }
 
 /// Options for creating image
@@ -491,9 +536,6 @@ impl CreateImageOpts {
         self.auth.server_address(server_address);
         self
     }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
     pub(crate) fn auth_ref(&self) -> &AuthOpts {
         &self.auth
     }
@@ -528,9 +570,6 @@ impl AuthOpts {
     pub fn server_address(&mut self, server_address: &str) -> &mut Self {
         insert!(self, "serveraddress", server_address);
         self
-    }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
     }
     pub fn serialize(&self) -> Result<String, Error> {
         Ok(base64::encode(&serde_json::to_string(&self.opts)?))
@@ -597,9 +636,6 @@ impl ExecOpts {
     pub fn working_dir(&mut self, dir: &str) -> &mut Self {
         insert!(self, "WorkingDir", dir);
         self
-    }
-    pub(crate) fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
     }
     pub(crate) fn _tty(&self) -> bool {
         if let Some(tty) = self.opts.get("Tty") {

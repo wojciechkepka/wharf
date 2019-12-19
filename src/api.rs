@@ -25,43 +25,40 @@ use crate::opts::*;
 use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
+use hyper::{body::to_bytes, Body, Method};
 use log::*;
-use serde_json::{json, Value};
 use std::path::Path;
 use std::str;
-use url::Url;
 
 macro_rules! err_msg {
     ($t: ident, $e: expr) => {
-        match serde_json::from_str::<Msg>(&$t) {
+        match serde_json::from_slice::<Msg>($t.as_ref()) {
             Ok(m) => Err(format_err!("{} - {}", $e, m.msg())),
             _ => Err(format_err!("{}", $e)),
         }
     };
 }
-
-// * Containers start *
-
 macro_rules! post_container {
-    ($api:expr, $d:ident) => {{
-        let res = $d
+    ($e: expr, $s: ident) => {{
+        let res = $s
             .docker
-            .client
-            .post($d.docker.url.join($api)?)
-            .body("")
-            .send()
+            .req(Method::POST, $e, None, Body::from(""), None)
             .await?;
-        match res.status().as_u16() {
+
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
             204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "internal server error"),
+            _ => err_msg!(text, ""),
         }
     }};
 }
+
+// * Containers start *
 
 /// Api wrapper for a single container
 /// # Example
@@ -100,17 +97,18 @@ impl<'d> Container<'d> {
     pub async fn start(&self) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/start", self.id))?,
+            .req(
+                Method::POST,
+                format!("/containers/{}/start", self.id),
+                None,
+                Body::from(""),
+                None,
             )
-            .body("")
-            .send()
             .await?;
+
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             204 => Ok(()),
             304 => err_msg!(text, "container already started"),
@@ -123,17 +121,18 @@ impl<'d> Container<'d> {
     pub async fn stop(&self) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/stop", self.id))?,
+            .req(
+                Method::POST,
+                format!("/containers/{}/stop", self.id),
+                None,
+                Body::from(""),
+                None,
             )
-            .body("")
-            .send()
             .await?;
+
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             204 => Ok(()),
             304 => err_msg!(text, "container already stopped"),
@@ -147,19 +146,21 @@ impl<'d> Container<'d> {
     pub async fn inspect(&self) -> Result<ContainerInspect, Error> {
         let res = self
             .docker
-            .client
-            .get(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/json", self.id))?,
+            .req(
+                Method::GET,
+                format!("/containers/{}/json", self.id),
+                None,
+                Body::from(""),
+                None,
             )
-            .send()
             .await?;
+
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             200 => {
-                let data: ContainerInspect = serde_json::from_str(&text)?;
+                let data: ContainerInspect = serde_json::from_slice(&text)?;
                 Ok(data)
             }
             404 => err_msg!(text, "no such container"),
@@ -170,28 +171,28 @@ impl<'d> Container<'d> {
     /// Restarts the container
     pub async fn restart(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/restart", self.id),
+            format!("/containers/{}/restart", self.id),
             self
         )?)
     }
     /// Kills the container
     pub async fn kill(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/kill", self.id),
+            format!("/containers/{}/kill", self.id),
             self
         )?)
     }
     /// Unpauses the container
     pub async fn unpause(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/unpause", self.id),
+            format!("/containers/{}/unpause", self.id),
             self
         )?)
     }
     /// Pauses the container
     pub async fn pause(&self) -> Result<(), Error> {
         Ok(post_container!(
-            &format!("containers/{}/pause", self.id),
+            format!("/containers/{}/pause", self.id),
             self
         )?)
     }
@@ -199,19 +200,18 @@ impl<'d> Container<'d> {
     pub async fn rename(&mut self, new_name: &str) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/rename", self.id))?,
+            .req(
+                Method::POST,
+                format!("/containers/{}/rename", self.id),
+                Some(format!("name={}", new_name)),
+                Body::from(""),
+                None,
             )
-            .query(&[("name", new_name)])
-            .send()
             .await?;
-        debug!("{:?}", res);
+
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             204 => {
                 self.id = new_name.to_string();
@@ -227,13 +227,18 @@ impl<'d> Container<'d> {
     pub async fn remove(&self, opts: &RmContainerOpts) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .delete(self.docker.url.join(&format!("containers/{}", self.id))?)
-            .query(opts.opts())
-            .send()
+            .req(
+                Method::DELETE,
+                format!("/containers/{}", self.id),
+                Some(opts.to_query()?),
+                Body::from(""),
+                None,
+            )
             .await?;
+
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             204 => Ok(()),
             404 => err_msg!(text, "no such container"),
@@ -244,45 +249,25 @@ impl<'d> Container<'d> {
     }
     /// Work in progress...
     pub async fn logs(&self, opts: &ContainerLogsOpts) -> Result<String, Error> {
-        let res = self
-            .docker
-            .client
-            .get(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/logs", self.id))?,
-            )
-            .query(opts.opts())
-            .send()
-            .await?;
-        let status = res.status().as_u16();
-        let text = res.text().await?;
-        match status {
-            200 => Ok(text),
-            404 => err_msg!(text, "no such container"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, ""),
-        }
+        unimplemented!()
     }
     /// Get a tar archive of a resource in the filesystem of container id  
-    /// Returns URL to the archived resource
-    pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<Url, Error> {
+    /// Returns a tar archived path
+    pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<Vec<u8>, Error> {
         let res = self
             .docker
-            .client
-            .get(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/archive", self.id))?,
+            .req(
+                Method::GET,
+                format!("/containers/{}/archive", self.id),
+                Some(format!("path={}", p.as_ref().to_str().unwrap())),
+                Body::from(""),
+                None,
             )
-            .query(&[("path", p.as_ref())])
-            .send()
             .await?;
         let status = res.status().as_u16();
-        let url = res.url().clone();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
         match status {
-            200 => Ok(url),
+            200 => Ok(text.to_vec()),
             400 => err_msg!(text, "container or path does not exist"),
             404 => err_msg!(text, "no such container"),
             500 => err_msg!(text, "server error"),
@@ -298,18 +283,17 @@ impl<'d> Container<'d> {
     ) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .put(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/archive", self.id))?,
+            .req(
+                Method::PUT,
+                format!("/containers/{}/archive", self.id),
+                Some(opts.to_query()?),
+                Body::from(archive.to_vec()),
+                None,
             )
-            .query(opts.opts())
-            .body(archive.to_vec())
-            .send()
             .await?;
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             200 => Ok(()),
             400 => err_msg!(text, "container or path does not exist"),
@@ -327,14 +311,13 @@ impl<'d> Container<'d> {
     pub async fn file_info<P: AsRef<Path>>(&self, path: P) -> Result<FileInfo, Error> {
         let res = self
             .docker
-            .client
-            .head(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/archive", self.id))?,
+            .req(
+                Method::HEAD,
+                format!("/containers/{}/archive", self.id),
+                Some(format!("path={}", path.as_ref().to_str().unwrap())),
+                Body::from(""),
+                None,
             )
-            .query(&[("path", path.as_ref().to_str())])
-            .send()
             .await?;
         let status = res.status().as_u16();
         match status {
@@ -349,7 +332,8 @@ impl<'d> Container<'d> {
                 )),
             },
             other => {
-                let text = res.text().await?;
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
                 match other {
                     400 => err_msg!(text, "bad parameter"),
                     404 => err_msg!(text, "container or path does not exist"),
@@ -364,20 +348,20 @@ impl<'d> Container<'d> {
     pub async fn ps<S: AsRef<str>>(&self, ps_args: S) -> Result<Vec<Process>, Error> {
         let res = self
             .docker
-            .client
-            .get(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/top", self.id))?,
+            .req(
+                Method::GET,
+                format!("/containers/{}/top", self.id),
+                Some(format!("ps_args={}", ps_args.as_ref())),
+                Body::from(""),
+                None,
             )
-            .query(&[("ps_args", ps_args.as_ref())])
-            .send()
             .await?;
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             200 => {
-                let data: ContainerProcessesJson = serde_json::from_str(&text)?;
+                let data: ContainerProcessesJson = serde_json::from_slice(&text)?;
                 Ok(data
                     .Processes
                     .iter()
@@ -391,40 +375,11 @@ impl<'d> Container<'d> {
     }
     /// Attach to a container
     pub async fn attach(&self) -> Result<(), Error> {
-        let res = self
-            .docker
-            .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/attach", self.id))?,
-            )
-            .header("Connection", "Upgrade")
-            .header("Upgrade", "tcp")
-            .send()
-            .await?;
-        let status = res.status().as_u16();
-        let text = res.text().await?;
-        match status {
-            101 => {
-                // The response body is a stream
-                // #TODO
-                // implement a stream reader for:
-                // - https://docs.docker.com/engine/api/v1.40/#operation/ContainerAttach
-                Ok(())
-            }
-            200 => Ok(()),
-            404 => err_msg!(text, "no such container"),
-            409 => err_msg!(text, "name already in use"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, ""),
-        }
+        unimplemented!()
     }
     /// Exec a command
     pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
-        let exec_id = self.create_exec_instance(opts).await?;
-        self.start_exec_instance(exec_id.trim_matches('"'), opts._detach(), opts._tty())
-            .await
+        unimplemented!()
     }
     // Starts the exec instance
     async fn start_exec_instance(
@@ -433,51 +388,11 @@ impl<'d> Container<'d> {
         detach: bool,
         tty: bool,
     ) -> Result<String, Error> {
-        let res = self
-            .docker
-            .client
-            .post(self.docker.url.join(&format!("exec/{}/start", id))?)
-            .json(&json!({"Detach": detach, "Tty": tty}))
-            .send()
-            .await?;
-        debug!("{:?}", res);
-        let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
-        match status {
-            200 => Ok(text),
-            404 => err_msg!(text, "no such exec instance"),
-            409 => err_msg!(text, "container is paused"),
-            _ => err_msg!(text, ""),
-        }
+        unimplemented!()
     }
     // Returns Id of exec instance
     async fn create_exec_instance(&self, opts: &ExecOpts) -> Result<String, Error> {
-        let res = self
-            .docker
-            .client
-            .post(
-                self.docker
-                    .url
-                    .join(&format!("containers/{}/exec", self.id))?,
-            )
-            .json(opts.opts())
-            .send()
-            .await?;
-        debug!("{:?}", res);
-        let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
-        match status {
-            201 => match serde_json::from_str::<Value>(&text)?.get("Id") {
-                Some(id) => Ok(id.to_string()),
-                _ => Err(format_err!("there was no field Id in the response body.")),
-            },
-            404 => err_msg!(text, "no such container"),
-            409 => err_msg!(text, "container is paused"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, ""),
-        }
+        unimplemented!()
     }
 }
 
@@ -494,38 +409,51 @@ impl<'d> Containers<'d> {
     pub async fn list(&self, opts: &ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join("containers/json")?)
-            .query(opts.opts())
-            .send()
+            .req(
+                Method::GET,
+                "/containers/json".into(),
+                Some(opts.to_query()?),
+                Body::from(""),
+                None,
+            )
             .await?;
-        let docker = self.docker;
-        debug!("{:?}", res);
-        let text = res.text().await?;
-        debug!("{}", text);
-        let data: Vec<ContainerData> = serde_json::from_str(&text)?;
-        debug!("{:?}", data);
-        Ok(data
-            .iter()
-            .map(|c| Container {
-                docker,
-                id: c.id.clone(),
-            })
-            .collect())
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => {
+                let data: Vec<ContainerData> = serde_json::from_slice(&text)?;
+                debug!("{:?}", data);
+                let docker = self.docker;
+                Ok(data
+                    .iter()
+                    .map(|c| Container {
+                        docker,
+                        id: c.id.clone(),
+                    })
+                    .collect())
+            }
+            400 => err_msg!(text, "bad parameter"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Create a container
     pub async fn create(&self, name: &str, opts: &ContainerBuilderOpts) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(self.docker.url.join("containers/create")?)
-            .query(&[("name", name)])
-            .header("Content-type", "application/json")
-            .json(opts.opts())
-            .send()
+            .req(
+                Method::POST,
+                "/containers/create".into(),
+                Some(format!("name={}", name)),
+                Body::from(serde_json::to_string(opts.opts())?),
+                None,
+            )
             .await?;
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             201 => Ok(()),
             400 => err_msg!(text, "bad parameter"),
@@ -551,27 +479,39 @@ impl<'d> Networks<'d> {
     }
     /// List all networks
     pub async fn list(&self) -> Result<Vec<NetworkData>, Error> {
+        // TODO add universal ListOpts for all listing methods
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join("networks")?)
-            .send()
+            .req(Method::GET, "/networks".into(), None, Body::from(""), None)
             .await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     ///Remove a network
     pub async fn remove(&self, id: &str) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .delete(self.docker.url.join(&format!("networks/{}", id))?)
-            .send()
+            .req(
+                Method::GET,
+                format!("/networks/{}", id),
+                None,
+                Body::from(""),
+                None,
+            )
             .await?;
         let status = res.status().as_u16();
-        let text = res.text().await?;
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
         match status {
-            204 => Ok(()),
+            200 => Ok(serde_json::from_slice(&text)?),
             403 => err_msg!(text, "operation not supported for pre-defined networks"),
             404 => err_msg!(text, "no such network"),
             500 => err_msg!(text, "server error"),
@@ -594,15 +534,25 @@ impl<'d> Images<'d> {
     }
     /// List all images
     pub async fn list(&self) -> Result<Vec<ImageData>, Error> {
-        // FIXME later
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join("images/json")?)
-            .send()
+            .req(
+                Method::GET,
+                "/images/json".into(),
+                None,
+                Body::from(""),
+                None,
+            )
             .await?;
-        let body = res.text().await?;
-        Ok(serde_json::from_str(&body)?)
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => Ok(serde_json::from_slice(&text)?),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Pulls an image from registry  
     /// WARNING!  
@@ -614,22 +564,24 @@ impl<'d> Images<'d> {
     }
     /// Create an image by either pulling it from a registry or importing it.
     pub async fn create(&self, opts: &CreateImageOpts) -> Result<(), Error> {
-        let mut req = self
-            .docker
-            .client
-            .post(self.docker.url.join("images/create")?);
-        // if we're pulling from registry we need to authenticate
+        let mut headers = Vec::new();
         if opts.opts().get("fromImage").is_some() {
-            req = req.header("X-Registry-Auth", opts.auth_ref().serialize()?);
+            headers.push(("X-Registry-Auth", opts.auth_ref().serialize()?));
         }
-        req = req.query(opts.opts());
-        //req = req.query(&[("fromImage", "ubuntu")]);
-        debug!("{:?}", req);
-        let res = req.send().await?;
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/images/create".into(),
+                None,
+                Body::from(""),
+                Some(headers),
+            )
+            .await?;
         let status = res.status().as_u16();
-        debug!("{:?}", res);
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
         match status {
             200 => Ok(()),
             404 => err_msg!(text, "repository does not exist or no read access"),
@@ -641,15 +593,18 @@ impl<'d> Images<'d> {
     pub async fn remove(&self, image: &str, force: bool, no_prune: bool) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .delete(self.docker.url.join(&format!("images/{}", image))?)
-            .query(&[("force", force), ("noprune", no_prune)])
-            .send()
+            .req(
+                Method::DELETE,
+                format!("/images/{}", image),
+                Some(format!("force={}&no_prune={}", force, no_prune)),
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
         match status {
             200 => Ok(()),
             404 => err_msg!(text, "no such image"),
@@ -663,15 +618,17 @@ impl<'d> Images<'d> {
     pub async fn import(&self, archive: &[u8]) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(self.docker.url.join("images/load")?)
-            .body(archive.to_vec())
-            .send()
+            .req(
+                Method::POST,
+                "/images/load".into(),
+                None,
+                Body::from(archive.to_vec()),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             200 => Ok(()),
             500 => err_msg!(text, "server error"),
@@ -685,15 +642,17 @@ impl<'d> Images<'d> {
     pub async fn tag(&self, image: &str, repo: &str, tag: &str) -> Result<(), Error> {
         let res = self
             .docker
-            .client
-            .post(self.docker.url.join(&format!("images/{}/tag", image))?)
-            .query(&json!({"repo": repo, "tag": tag}))
-            .send()
+            .req(
+                Method::POST,
+                format!("/images/{}/tag", image),
+                Some(format!("repo={}&tag={}", repo, tag)),
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
             201 => Ok(()),
             400 => err_msg!(text, "bad parameter"),
@@ -708,16 +667,19 @@ impl<'d> Images<'d> {
     pub async fn inspect(&self, image: &str) -> Result<ImageInspect, Error> {
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join(&format!("images/{}/json", image))?)
-            .send()
+            .req(
+                Method::GET,
+                format!("/images/{}/json", image),
+                None,
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(serde_json::from_str(&text)?),
+            200 => Ok(serde_json::from_slice(&text)?),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
@@ -728,16 +690,19 @@ impl<'d> Images<'d> {
     pub async fn history(&self, image: &str) -> Result<Vec<ImageHistory>, Error> {
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join(&format!("images/{}/history", image))?)
-            .send()
+            .req(
+                Method::GET,
+                format!("/images/{}/history", image),
+                None,
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(serde_json::from_str(&text)?),
+            200 => Ok(serde_json::from_slice(&text)?),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
@@ -750,24 +715,21 @@ impl<'d> Images<'d> {
         limit: u64,
         filters: String,
     ) -> Result<Vec<ImageMatch>, Error> {
-        // TODO change filters type to some type of hash map and encode the json as parameter
         let res = self
             .docker
-            .client
-            .get(self.docker.url.join("images/search")?)
-            .query(&json!({
-                "term": term,
-                "limit": limit,
-                "filters": filters
-            }))
-            .send()
+            .req(
+                Method::GET,
+                "/images/search".into(),
+                Some(format!("term={}&limit={}&filters={}", term, limit, filters)),
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(serde_json::from_str(&text)?),
+            200 => Ok(serde_json::from_slice(&text)?),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
@@ -775,20 +737,21 @@ impl<'d> Images<'d> {
     }
     /// Delete unused images
     pub async fn prune(&self, filters: &str) -> Result<ImagesDeleted, Error> {
-        // TODO change filters type to some type of hash map and encode the json as parameter
         let res = self
             .docker
-            .client
-            .post(self.docker.url.join("images/prune")?)
-            .query(&json!({ "filters": filters }))
-            .send()
+            .req(
+                Method::POST,
+                "/images/prune".into(),
+                Some(format!("filters={}", filters)),
+                Body::from(""),
+                None,
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(serde_json::from_str(&text).unwrap_or_default()),
+            200 => Ok(serde_json::from_slice(&text).unwrap_or_default()),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
@@ -798,22 +761,22 @@ impl<'d> Images<'d> {
     ///The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the dockerfile parameter. See the Dockerfile reference for more information.
     //The Docker daemon performs a preliminary validation of the Dockerfile before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
     pub async fn build(&self, opts: &ImageBuilderOpts) -> Result<(), Error> {
-        // TODO add authentication and registry passing
         let res = self
             .docker
-            .client
-            .post(self.docker.url.join("/build")?)
-            .query(opts.opts())
-            .header("Content-type", "application/x-tar")
-            .send()
+            .req(
+                Method::POST,
+                "/build".into(),
+                Some(opts.to_query()?),
+                Body::from(""),
+                Some(vec![("Content-type", "application/x-tar".into())]),
+            )
             .await?;
-        debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = res.text().await?;
-        debug!("{}", text);
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(()),
-            400 => err_msg!(text, "bad parameter"),
+            200 => Ok(serde_json::from_slice(&text).unwrap_or_default()),
+            404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),
         }

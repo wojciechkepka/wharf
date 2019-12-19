@@ -1,6 +1,6 @@
 [package]
 name = "wharf"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -15,9 +15,13 @@ categories = ["api-bindings"]
 
 [dependencies]
 failure = "0.1.6"
-url = "2.1.0"
 serde = { version = "1.0.103", features = ["derive"] }
 serde_json = "1.0.44"
-reqwest = { version = "0.10.0-alpha.2", features = ["json"] }
+hyper = "0.13.1"
 base64 = "0.11"
 log = "0.4.8"
+http = "0.2"
+
+#for easier testing and development
+#tokio = { version = "0.2.4", features = ["macros"] }
+#pretty_env_logger = "0.3.1"

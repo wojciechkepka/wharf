@@ -43,6 +43,7 @@ pub mod result;
 use crate::api::*;
 use crate::opts::*;
 use failure::Error;
+use http::header::HeaderValue;
 use http::uri::PathAndQuery;
 use hyper::{
     body::to_bytes, body::Bytes, body::HttpBody as _, client::HttpConnector, Body, Method, Request,
@@ -102,12 +103,14 @@ impl Docker {
         }
         let uri = Uri::from_parts(uri)?;
         let mut req = Request::builder().method(method).uri(uri);
-        if let Some(h) = headers {
-            h.iter()
-                .map(|header| {
-                    req = req.header(header.0, header.1);
-                })
-                .collect::<()>();
+        if let Some(mut req_h) = req.headers_mut() {
+            if let Some(h) = headers {
+                h.iter()
+                    .map(|header| {
+                        req_h.insert(header.0, HeaderValue::from_str(&header.1).unwrap());
+                    })
+                    .collect::<()>();
+            }
         }
         let req = req.body(body).expect("failed to build a request");
 

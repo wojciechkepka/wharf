@@ -25,6 +25,7 @@ use crate::opts::*;
 use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
+use hyper::{body::to_bytes, Body, Method};
 use log::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -32,35 +33,33 @@ use std::str;
 
 macro_rules! err_msg {
     ($t: ident, $e: expr) => {
-        match serde_json::from_str::<Msg>(&$t) {
+        match serde_json::from_slice::<Msg>($t.as_ref()) {
             Ok(m) => Err(format_err!("{} - {}", $e, m.msg())),
             _ => Err(format_err!("{}", $e)),
         }
     };
 }
-
-// * Containers start *
-
 macro_rules! post_container {
-    ($api:expr, $d:ident) => {{
-        let res = $d
+    ($e: expr, $s: ident) => {{
+        let res = $s
             .docker
-            .client
-            .post($d.docker.url.join($api)?)
-            .body("")
-            .send()
+            .req(Method::POST, $e, None, Body::from(""))
             .await?;
-        match res.status().as_u16() {
+        trace!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
             204 => Ok(()),
-            404 => Err(format_err!("no such container")),
-            500 => Err(format_err!("internal server error")),
-            _ => {
-                let m: Msg = serde_json::from_str(&res.text().await?)?;
-                Err(format_err!("{}", m.msg()))
-            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "internal server error"),
+            _ => err_msg!(text, ""),
         }
     }};
 }
+
+// * Containers start *
 
 /// Api wrapper for a single container
 /// # Example
@@ -97,36 +96,129 @@ impl<'d> Container<'d> {
     }
     /// Starts the container
     pub async fn start(&self) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/start", self.id),
+                None,
+                Body::from(""),
+            )
+            .await?;
+        trace!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            204 => Ok(()),
+            304 => err_msg!(text, "container already started"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Stops the container
     pub async fn stop(&self) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/stop", self.id),
+                None,
+                Body::from(""),
+            )
+            .await?;
+        trace!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            204 => Ok(()),
+            304 => err_msg!(text, "container already stopped"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Inspect a container
     /// Return low-level information about a container.
     pub async fn inspect(&self) -> Result<ContainerInspect, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/containers/{}/json", self.id),
+                None,
+                Body::from(""),
+            )
+            .await?;
+        trace!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => {
+                let data: ContainerInspect = serde_json::from_slice(&text)?;
+                Ok(data)
+            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Restarts the container
     pub async fn restart(&self) -> Result<(), Error> {
-        unimplemented!()
+        Ok(post_container!(
+            format!("/containers/{}/restart", self.id),
+            self
+        )?)
     }
     /// Kills the container
     pub async fn kill(&self) -> Result<(), Error> {
-        unimplemented!()
+        Ok(post_container!(
+            format!("/containers/{}/kill", self.id),
+            self
+        )?)
     }
     /// Unpauses the container
     pub async fn unpause(&self) -> Result<(), Error> {
-        unimplemented!()
+        Ok(post_container!(
+            format!("/containers/{}/unpause", self.id),
+            self
+        )?)
     }
     /// Pauses the container
     pub async fn pause(&self) -> Result<(), Error> {
-        unimplemented!()
+        Ok(post_container!(
+            format!("/containers/{}/pause", self.id),
+            self
+        )?)
     }
     /// Rename container
     pub async fn rename(&mut self, new_name: &str) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/rename", self.id),
+                Some(format!("name={}", new_name)),
+                Body::from(""),
+            )
+            .await?;
+        trace!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            204 => {
+                self.id = new_name.to_string();
+                Ok(())
+            }
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "name already in use"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Remove a container
     pub async fn remove(&self, opts: &RmContainerOpts) -> Result<(), Error> {

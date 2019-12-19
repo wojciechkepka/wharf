@@ -85,26 +85,19 @@ impl Docker {
     pub fn networks(&self) -> Networks {
         Networks::new(&self)
     }
-    async fn req<Q>(
+    async fn req(
         &self,
         method: Method,
-        path: &'static str,
-        query: Option<Q>,
+        path: String,
+        query: Option<String>,
         body: Body,
-    ) -> Result<Response<Body>, Error>
-    where
-        Q: DockerOpts,
-    {
+    ) -> Result<Response<Body>, Error> {
         let mut uri = self.url.clone().into_parts();
         match query {
             Some(q) => {
-                uri.path_and_query = Some(PathAndQuery::from_str(&format!(
-                    "{}{}",
-                    path,
-                    q.to_query()?
-                ))?)
+                uri.path_and_query = Some(PathAndQuery::from_str(&format!("{}?{}", path, q))?)
             }
-            None => uri.path_and_query = Some(PathAndQuery::from_str(path)?),
+            None => uri.path_and_query = Some(PathAndQuery::from_str(&path)?),
         }
 
         let uri = Uri::from_parts(uri)?;
@@ -114,6 +107,7 @@ impl Docker {
             .body(body)
             .expect("failed to build a request");
 
+        trace!("{:?}", req);
         let mut res = self.client.request(req).await?;
 
         Ok(res)
@@ -124,8 +118,8 @@ impl Docker {
         let mut res = self
             .req(
                 Method::POST,
-                "/auth",
-                None::<NullOpts>,
+                "/auth".into(),
+                None,
                 Body::from(serde_json::to_string(opts.opts())?),
             )
             .await?;

@@ -25,9 +25,8 @@ use crate::opts::*;
 use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
-use hyper::{body::to_bytes, body::Bytes, Body, Method};
+use hyper::{body::to_bytes, Body, Method};
 use log::*;
-use serde_json::{json, Value};
 use std::path::Path;
 use std::str;
 

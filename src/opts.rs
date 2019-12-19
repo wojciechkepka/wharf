@@ -77,15 +77,6 @@ impl DockerOpts for ImageBuilderOpts {
         &self.opts
     }
 }
-#[derive(Default)]
-pub(crate) struct NullOpts {
-    opts: HashMap<&'static str, Value>,
-}
-impl DockerOpts for NullOpts {
-    fn opts(&self) -> &HashMap<&'static str, Value> {
-        &self.opts
-    }
-}
 
 /// Options for uploading an archive to a container
 #[derive(Default)]

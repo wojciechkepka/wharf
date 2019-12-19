@@ -45,10 +45,7 @@ use crate::opts::*;
 use failure::Error;
 use http::header::HeaderValue;
 use http::uri::PathAndQuery;
-use hyper::{
-    body::to_bytes, body::Bytes, body::HttpBody as _, client::HttpConnector, Body, Method, Request,
-    Response, Uri,
-};
+use hyper::{body::to_bytes, client::HttpConnector, Body, Method, Request, Response, Uri};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::str;

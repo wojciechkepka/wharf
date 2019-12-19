@@ -25,7 +25,7 @@ use crate::opts::*;
 use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
-use hyper::{body::to_bytes, Body, Method};
+use hyper::{body::to_bytes, body::Bytes, Body, Method};
 use log::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -43,9 +43,9 @@ macro_rules! post_container {
     ($e: expr, $s: ident) => {{
         let res = $s
             .docker
-            .req(Method::POST, $e, None, Body::from(""))
+            .req(Method::POST, $e, None, Body::from(""), None)
             .await?;
-        trace!("{:?}", res);
+
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
@@ -103,9 +103,10 @@ impl<'d> Container<'d> {
                 format!("/containers/{}/start", self.id),
                 None,
                 Body::from(""),
+                None,
             )
             .await?;
-        trace!("{:?}", res);
+
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
@@ -126,9 +127,10 @@ impl<'d> Container<'d> {
                 format!("/containers/{}/stop", self.id),
                 None,
                 Body::from(""),
+                None,
             )
             .await?;
-        trace!("{:?}", res);
+
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
@@ -150,9 +152,10 @@ impl<'d> Container<'d> {
                 format!("/containers/{}/json", self.id),
                 None,
                 Body::from(""),
+                None,
             )
             .await?;
-        trace!("{:?}", res);
+
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
@@ -203,9 +206,10 @@ impl<'d> Container<'d> {
                 format!("/containers/{}/rename", self.id),
                 Some(format!("name={}", new_name)),
                 Body::from(""),
+                None,
             )
             .await?;
-        trace!("{:?}", res);
+
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
@@ -222,16 +226,54 @@ impl<'d> Container<'d> {
     }
     /// Remove a container
     pub async fn remove(&self, opts: &RmContainerOpts) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::DELETE,
+                format!("/containers/{}", self.id),
+                Some(opts.to_query()?),
+                Body::from(""),
+                None,
+            )
+            .await?;
+
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            204 => Ok(()),
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "name already in use"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Work in progress...
     pub async fn logs(&self, opts: &ContainerLogsOpts) -> Result<String, Error> {
         unimplemented!()
     }
     /// Get a tar archive of a resource in the filesystem of container id  
-    /// Returns URL to the archived resource
-    pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<String, Error> {
-        unimplemented!()
+    /// Returns a tar archived path
+    pub async fn archive_path<P: AsRef<Path>>(&self, p: P) -> Result<Vec<u8>, Error> {
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/containers/{}/archive", self.id),
+                Some(format!("path={}", p.as_ref().to_str().unwrap())),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        match status {
+            200 => Ok(text.to_vec()),
+            400 => err_msg!(text, "container or path does not exist"),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Upload a tar archive to be extracted to a path in the filesystem of container id.  
     /// The input file must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz.
@@ -240,17 +282,97 @@ impl<'d> Container<'d> {
         archive: &[u8],
         opts: &UploadArchiveOpts,
     ) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::PUT,
+                format!("/containers/{}/archive", self.id),
+                Some(opts.to_query()?),
+                Body::from(archive.to_vec()),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => Ok(()),
+            400 => err_msg!(text, "container or path does not exist"),
+            403 => err_msg!(
+                text,
+                "permission denied, the volume or container rootfs is marked as read-only"
+            ),
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Get information about files in a container  
     /// A response header X-Docker-Container-Path-Stat is return containing a base64 - encoded JSON object with some filesystem header information about the path.
     pub async fn file_info<P: AsRef<Path>>(&self, path: P) -> Result<FileInfo, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::HEAD,
+                format!("/containers/{}/archive", self.id),
+                Some(format!("path={}", path.as_ref().to_str().unwrap())),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            200 => match res.headers().get("X-Docker-Container-Path-Stat") {
+                Some(data) => {
+                    let data = base64::decode(data)?;
+                    let file_info: FileInfo = serde_json::from_str(str::from_utf8(&data)?)?;
+                    Ok(file_info)
+                }
+                None => Err(format_err!(
+                    "could not parse FileInfo from base64 encoded header"
+                )),
+            },
+            other => {
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
+                match other {
+                    400 => err_msg!(text, "bad parameter"),
+                    404 => err_msg!(text, "container or path does not exist"),
+                    500 => err_msg!(text, "server error"),
+                    _ => err_msg!(text, ""),
+                }
+            }
+        }
     }
     /// List processes running inside a container  
     /// On Unix systems, this is done by running the ps command. This endpoint is not supported on Windows.
     pub async fn ps<S: AsRef<str>>(&self, ps_args: S) -> Result<Vec<Process>, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                format!("/containers/{}/top", self.id),
+                Some(format!("ps_args={}", ps_args.as_ref())),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            200 => {
+                let data: ContainerProcessesJson = serde_json::from_slice(&text)?;
+                Ok(data
+                    .Processes
+                    .iter()
+                    .map(|p| Process::new(&data.Titles, &p))
+                    .collect())
+            }
+            404 => err_msg!(text, "no such container"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Attach to a container
     pub async fn attach(&self) -> Result<(), Error> {
@@ -286,11 +408,61 @@ impl<'d> Containers<'d> {
     }
     /// List all containers
     pub async fn list(&self, opts: &ListContainersOpts) -> Result<Vec<Container<'_>>, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::GET,
+                "/containers/json".into(),
+                Some(opts.to_query()?),
+                Body::from(""),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+
+        match status {
+            200 => {
+                let data: Vec<ContainerData> = serde_json::from_slice(&text)?;
+                debug!("{:?}", data);
+                let docker = self.docker;
+                Ok(data
+                    .iter()
+                    .map(|c| Container {
+                        docker,
+                        id: c.id.clone(),
+                    })
+                    .collect())
+            }
+            400 => err_msg!(text, "bad parameter"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
     /// Create a container
     pub async fn create(&self, name: &str, opts: &ContainerBuilderOpts) -> Result<(), Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                "/containers/create".into(),
+                Some(format!("name={}", name)),
+                Body::from(serde_json::to_string(opts.opts())?),
+                None,
+            )
+            .await?;
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            201 => Ok(()),
+            400 => err_msg!(text, "bad parameter"),
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "conflict"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 // * Containers end *

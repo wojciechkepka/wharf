@@ -91,6 +91,7 @@ impl Docker {
         path: String,
         query: Option<String>,
         body: Body,
+        headers: Option<Vec<(&'static str, String)>>,
     ) -> Result<Response<Body>, Error> {
         let mut uri = self.url.clone().into_parts();
         match query {
@@ -99,17 +100,21 @@ impl Docker {
             }
             None => uri.path_and_query = Some(PathAndQuery::from_str(&path)?),
         }
-
         let uri = Uri::from_parts(uri)?;
-        let req = Request::builder()
-            .method(method)
-            .uri(uri)
-            .body(body)
-            .expect("failed to build a request");
+        let mut req = Request::builder().method(method).uri(uri);
+        if let Some(h) = headers {
+            h.iter()
+                .map(|header| {
+                    req = req.header(header.0, header.1);
+                })
+                .collect::<()>();
+        }
+        let req = req.body(body).expect("failed to build a request");
 
         trace!("{:?}", req);
         let mut res = self.client.request(req).await?;
 
+        trace!("{:?}", res);
         Ok(res)
     }
     /// Get auth token for authorized operations  
@@ -121,6 +126,7 @@ impl Docker {
                 "/auth".into(),
                 None,
                 Body::from(serde_json::to_string(opts.opts())?),
+                None,
             )
             .await?;
         debug!("{:?}", res);

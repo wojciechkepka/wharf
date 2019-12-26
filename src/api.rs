@@ -29,7 +29,6 @@ use hyper::{body::to_bytes, Body, Method};
 use log::*;
 use std::path::Path;
 use std::str;
-
 macro_rules! err_msg {
     ($t: ident, $e: expr) => {
         match serde_json::from_slice::<Msg>($t.as_ref()) {
@@ -374,14 +373,44 @@ impl<'d> Container<'d> {
         }
     }
     /// Attach to a container
-    pub async fn attach(&self) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn attach(&self, opts: &AttachOpts) -> Result<hyper::upgrade::Upgraded, Error> {
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/attach", self.id),
+                Some(opts.to_query()?),
+                Body::from(""),
+                Some(vec![
+                    ("Connection", "Upgrade".into()),
+                    ("Upgrade", "tcp".into()),
+                ]),
+            )
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            101 => match res.into_body().on_upgrade().await {
+                Ok(upgraded) => Ok(upgraded),
+                Err(e) => Err(format_err!("connection upgrade failed - {:?}", e)),
+            },
+            other => {
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
+                match other {
+                    400 => err_msg!(text, "bad parameter"),
+                    404 => err_msg!(text, "no such container"),
+                    500 => err_msg!(text, "server error"),
+                    _ => err_msg!(text, ""),
+                }
+            }
+        }
     }
     /// Exec a command
     pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
         unimplemented!()
     }
     // Starts the exec instance
+    #[allow(dead_code)]
     async fn start_exec_instance(
         &self,
         id: &str,

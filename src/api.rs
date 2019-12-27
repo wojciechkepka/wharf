@@ -448,7 +448,7 @@ impl<'d> Containers<'d> {
                 "/containers/create".into(),
                 Some(format!("name={}", name)),
                 Body::from(serde_json::to_string(opts.opts())?),
-                None,
+                Some(vec![("Content-type", "application/json".into())]),
             )
             .await?;
         let status = res.status().as_u16();

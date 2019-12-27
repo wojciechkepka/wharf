@@ -35,8 +35,10 @@
 //! ```
 
 #![allow(non_snake_case)]
-#[macro_use] extern crate failure;
-#[macro_use] pub mod api;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+pub mod api;
 pub mod opts;
 pub mod result;
 use crate::api::*;

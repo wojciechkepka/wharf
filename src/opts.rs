@@ -2,7 +2,7 @@
 //!
 //! You can easily chain options by doing:
 //! ```ignore
-//! opts.path("/example/path").no_overwrite("true").copy_uid_gid("false");
+//! opts.path("/example/path").no_overwrite(true).copy_uid_gid("false");
 //! ```
 use failure::Error;
 use log::*;
@@ -93,13 +93,13 @@ impl UploadArchiveOpts {
         insert!(self, "path", path);
         self
     }
-    /// If “1”, “true”, or “True” then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa.
-    pub fn no_overwrite(&mut self, no_overwrite: &str) -> &mut Self {
+    /// If true then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa.
+    pub fn no_overwrite(&mut self, no_overwrite: bool) -> &mut Self {
         insert!(self, "noOverwriteDirNonDir", no_overwrite);
         self
     }
-    /// If “1”, “true”, then it will copy UID/GID maps to the dest file or dir
-    pub fn copy_uid_gid(&mut self, copy_uid_gid: &str) -> &mut Self {
+    /// If true, then it will copy UID/GID maps to the dest file or dir
+    pub fn copy_uid_gid(&mut self, copy_uid_gid: bool) -> &mut Self {
         insert!(self, "copyUIDGID", copy_uid_gid);
         self
     }
@@ -664,16 +664,13 @@ mod tests {
         let _ = ();
         let mut query = HashMap::new();
         query.insert("path", serde_json::to_value("/example/path").unwrap());
-        query.insert(
-            "noOverwriteDirNonDir",
-            serde_json::to_value("true").unwrap(),
-        );
-        query.insert("copyUIDGID", serde_json::to_value("true").unwrap());
+        query.insert("noOverwriteDirNonDir", serde_json::to_value(true).unwrap());
+        query.insert("copyUIDGID", serde_json::to_value(true).unwrap());
 
         let mut opts = UploadArchiveOpts::new();
         opts.path("/example/path")
-            .no_overwrite("true")
-            .copy_uid_gid("true");
+            .no_overwrite(true)
+            .copy_uid_gid(true);
 
         opts.opts
             .iter()

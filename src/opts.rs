@@ -374,6 +374,9 @@ pub struct ImageBuilderOpts {
     opts: HashMap<&'static str, Value>,
 }
 impl ImageBuilderOpts {
+    pub fn new() -> Self {
+        ImageBuilderOpts::default()
+    }
     /// Path within the build context to the Dockerfile.  
     /// This is ignored if remote is specified and points to an external Dockerfile.
     pub fn dockerfile(&mut self, path: &str) -> &mut Self {
@@ -451,8 +454,8 @@ impl ImageBuilderOpts {
     }
     /// JSON map of string pairs for build-time variables. Users pass these values at build-time.  
     /// Docker uses the buildargs as the environment context for commands run via the Dockerfile RUN instruction, or for variable expansion in other Dockerfile instructions. This is not meant for passing secret values.
-    pub fn build_args(&mut self, args: HashMap<&str, &str>) -> &mut Self {
-        insert!(self, "build_args", args);
+    pub fn build_args(&mut self, args: &HashMap<&str, &str>) -> &mut Self {
+        insert!(self, "buildargs", args);
         self
     }
     /// Size of /dev/shm in bytes. The size must be greater than 0. If omitted the system uses 64MB.
@@ -461,7 +464,7 @@ impl ImageBuilderOpts {
         self
     }
     /// Arbitrary key/value labels to set on the image
-    pub fn labels(&mut self, labels: HashMap<&str, &str>) -> &mut Self {
+    pub fn labels(&mut self, labels: &HashMap<&str, &str>) -> &mut Self {
         insert!(self, "labels", labels);
         self
     }
@@ -887,6 +890,73 @@ mod tests {
             .iter()
             .map(|(k, v)| {
                 let val = opts_j.get(k);
+                assert!(val.is_some());
+                assert_eq!(val.unwrap(), v);
+            })
+            .collect()
+    }
+    #[test]
+    fn image_builder_opts_work() {
+        let mut labels = HashMap::new();
+        labels.insert("test", "label");
+
+        let mut build_args = HashMap::new();
+        build_args.insert("http_proxy", "proxy.domain.com");
+
+        let body = json!({
+            "dockerfile": "/path/to/file",
+            "t": "image_name",
+            "extrahosts": "",
+            "remote": "http://repo.com",
+            "q": false,
+            "no_cache": true,
+            "rm": true,
+            "forcerm": true,
+            "memory": 1000000,
+            "memswap": 1000000,
+            "cpushares": 1,
+            "cpusetcpus": "0-3",
+            "cpuperiod": 1,
+            "cpuquota": 1,
+            "buildargs": {
+                "http_proxy": "proxy.domain.com"
+            },
+            "shmsize": 1,
+            "labels": {
+                "test": "label"
+            },
+            "networkmode": "bridge",
+            "platform": "",
+            "target": "",
+        });
+
+        let mut opts = ImageBuilderOpts::new();
+        opts.dockerfile("/path/to/file")
+            .name("image_name")
+            .extra_hosts("")
+            .remote("http://repo.com")
+            .quiet(false)
+            .no_cache(true)
+            .rm(true)
+            .forcerm(true)
+            .memory(1000000)
+            .mem_swap(1000000)
+            .cpu_shares(1)
+            .cpusetcpus("0-3")
+            .cpu_period(1)
+            .cpu_quota(1)
+            .build_args(&build_args)
+            .shmsize(1)
+            .labels(&labels)
+            .network_mode("bridge")
+            .platform("")
+            .target("");
+
+        opts.opts
+            .iter()
+            .map(|(k, v)| {
+                let val = body.get(k);
+                println!("{} - {:?}", k, val);
                 assert!(val.is_some());
                 assert_eq!(val.unwrap(), v);
             })

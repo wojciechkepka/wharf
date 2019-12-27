@@ -1,9 +1,11 @@
 use failure::Error;
 use std::collections::HashMap;
+use std::env;
 use wharf::{opts::ContainerBuilderOpts, Docker};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    env::set_var("RUST_LOG", "wharf=trace");
     pretty_env_logger::init();
     // create docker api instance
     let d = Docker::new("http://0.0.0.0:2376/")?;

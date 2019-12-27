@@ -5,41 +5,18 @@
 [![Docs](https://img.shields.io/badge/docs-master-brightgreen)](https://docs.rs/wharf)
 
 Fully asynchronous docker api library written in Rust.
-## Example
-```rust
-use failure::Error;
-use wharf::Docker;
-use wharf::opts::{ContainerBuilderOpts, ListContainersOpts};
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    // create docker api instance
-    let d = Docker::new("http://0.0.0.0:2376")?;
-    // get containers api handle from d
-    let containers = d.containers();
-    // Create instance of query options
-    let mut opts = ListContainersOpts::new();
-    opts.all(true);
-    // iterate over containers
-    for container in containers.list(opts).await? {
-        // access container metadata
-        println!("{:?}", container.inspect().unwrap());
-        // manipulate container
-        container.stop().await?;
-        container.start().await?;
-        container.rename("alpine1").await?;
-    }
-    // Create a container
-    let mut container_opts = ContainerBuilderOpts::new();
-    container_opts
-	.image("ubuntu")
-	.cmd(&["/bin/echo".into(), "hello".into()])
-	.env(&["HTTPS_PROXY=proxy.domain.com:1337"]);
+## Examples
+To run examples: 
+- clone the repository
+  - `git clone https://github.com/wojciechkepka/wharf`
+- [run docker daemon listening on tcp port 2376](https://docs.docker.com/engine/reference/commandline/dockerd/)
+- run example by replacing `example_name` with one from below
+  - `cargo run --example example_name`
 
-    containers.create("jimmy-falcon", &container_opts).await?;
+Available examples:
+- [create_a_container](https://github.com/wojciechkepka/wharf/blob/master/examples/create_a_container.rs)
+- [control_a_container](https://github.com/wojciechkepka/wharf/blob/master/examples/control_a_container.rs)
 
-    Ok(())
-}
-```
 ## License
 [MIT](https://github.com/wojciechkepka/wharf/blob/master/LICENSE)

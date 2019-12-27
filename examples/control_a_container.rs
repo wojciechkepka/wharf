@@ -1,9 +1,11 @@
 use failure::Error;
+use std::env;
 use std::fs;
 use wharf::{opts::UploadArchiveOpts, Docker};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    env::set_var("RUST_LOG", "wharf=trace");
     pretty_env_logger::init();
     // create docker api instance
     let d = Docker::new("http://0.0.0.0:2376/")?;
@@ -12,9 +14,7 @@ async fn main() -> Result<(), Error> {
     c.start().await?;
 
     let mut opts = UploadArchiveOpts::new();
-    opts.path("/path/in/container/")
-        .no_overwrite(false)
-        .copy_uid_gid(true);
+    opts.path("/tmp/").no_overwrite(false).copy_uid_gid(true);
     let archive = fs::read("/path/to/some/archive.tar")?;
     c.upload_archive(&archive, &opts).await?;
     c.rename("new_name").await?;

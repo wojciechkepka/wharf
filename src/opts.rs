@@ -326,7 +326,7 @@ impl ContainerBuilderOpts {
     }
     /// A list of string in the form:
     /// "port/<tcp|udp|sctp>"
-    pub fn exposed_ports<S: AsRef<str>>(&mut self, ports: &[S]) -> &mut Self {
+    pub fn exposed_ports<S: AsRef<str> + Serialize>(&mut self, ports: &[S]) -> &mut Self {
         let exposed_ports: HashMap<&str, Value> = ports
             .iter()
             .map(|port| (port.as_ref(), Value::default()))
@@ -340,7 +340,7 @@ impl ContainerBuilderOpts {
     }
     /// A list of mounts in the container in the form:
     /// "/host/path:/container/path"
-    pub fn volumes<S: AsRef<str>>(&mut self, mounts: &[S]) -> &mut Self {
+    pub fn volumes<S: AsRef<str> + Serialize>(&mut self, mounts: &[S]) -> &mut Self {
         let volumes: HashMap<&str, Value> = mounts
             .iter()
             .map(|m| (m.as_ref(), Value::default()))
@@ -376,13 +376,13 @@ pub struct ImageBuilderOpts {
 impl ImageBuilderOpts {
     /// Path within the build context to the Dockerfile.  
     /// This is ignored if remote is specified and points to an external Dockerfile.
-    pub fn dockerfile(&mut self, path: String) -> &mut Self {
+    pub fn dockerfile(&mut self, path: &str) -> &mut Self {
         insert!(self, "dockerfile", path);
         self
     }
     /// A name and optional tag to apply to the image in the name:tag format.  
     /// If you omit the tag the default latest value is assumed.
-    pub fn name(&mut self, name: String) -> &mut Self {
+    pub fn name(&mut self, name: &str) -> &mut Self {
         insert!(self, "t", name);
         self
     }
@@ -395,7 +395,7 @@ impl ImageBuilderOpts {
         self
     }
     /// Extra hosts to add to /etc/hosts
-    pub fn extra_hosts(&mut self, hosts: String) -> &mut Self {
+    pub fn extra_hosts(&mut self, hosts: &str) -> &mut Self {
         insert!(self, "extrahosts", hosts);
         self
     }
@@ -435,7 +435,7 @@ impl ImageBuilderOpts {
         self
     }
     /// CPUs in which to allow execution (e.g., 0-3, 0,1).
-    pub fn cpusetcpus(&mut self, setcpus: String) -> &mut Self {
+    pub fn cpusetcpus(&mut self, setcpus: &str) -> &mut Self {
         insert!(self, "cpusetcpus", setcpus);
         self
     }

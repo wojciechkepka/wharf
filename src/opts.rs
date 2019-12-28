@@ -620,7 +620,7 @@ impl AuthOpts {
 }
 
 /// Options for executing commands
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize)]
 pub struct ExecOpts {
     opts: HashMap<&'static str, Value>,
 }

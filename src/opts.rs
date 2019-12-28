@@ -47,6 +47,11 @@ impl DockerOpts for ContainerBuilderOpts {
         &self.opts
     }
 }
+impl DockerOpts for AttachOpts {
+    fn opts(&self) -> &HashMap<&'static str, Value> {
+        &self.opts
+    }
+}
 impl DockerOpts for ContainerLogsOpts {
     fn opts(&self) -> &HashMap<&'static str, Value> {
         &self.opts
@@ -368,6 +373,44 @@ impl ContainerBuilderOpts {
     }
 }
 
+/// Options for attaching to a container
+#[derive(Default)]
+pub struct AttachOpts {
+    opts: HashMap<&'static str, Value>,
+}
+impl AttachOpts {
+    pub fn new() -> Self {
+        AttachOpts::default()
+    }
+    /// Whether to attach to stdin.
+    pub fn stdin(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "stdin", attach);
+        self
+    }
+    /// Whether to attach to stdout.
+    pub fn stdout(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "stdout", attach);
+        self
+    }
+    /// Whether to attach to stderr.
+    pub fn stderr(&mut self, attach: bool) -> &mut Self {
+        insert!(self, "stderr", attach);
+        self
+    }
+    /// Stream attached streams from the time the request was made onwards
+    pub fn stream(&mut self, stream: bool) -> &mut Self {
+        insert!(self, "stream", stream);
+        self
+    }
+    /// Replay previous logs from the container.  
+    /// This is useful for attaching to a container that has started and you want to output everything since the container started.  
+    /// If stream is also enabled, once all the previous output has been returned, it will seamlessly transition into streaming current output.
+    pub fn logs(&mut self, logs: bool) -> &mut Self {
+        insert!(self, "logs", logs);
+        self
+    }
+}
+
 /// Options for building an image
 #[derive(Default)]
 pub struct ImageBuilderOpts {
@@ -580,7 +623,7 @@ impl AuthOpts {
 }
 
 /// Options for executing commands
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize)]
 pub struct ExecOpts {
     opts: HashMap<&'static str, Value>,
 }

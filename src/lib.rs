@@ -101,19 +101,17 @@ impl Docker {
         }
         let uri = Uri::from_parts(uri)?;
         let mut req = Request::builder().method(method).uri(uri);
-        if let Some(mut req_h) = req.headers_mut() {
+        if let Some(req_h) = req.headers_mut() {
             if let Some(h) = headers {
-                h.iter()
-                    .map(|header| {
-                        req_h.insert(header.0, HeaderValue::from_str(&header.1).unwrap());
-                    })
-                    .collect::<()>();
+                h.iter().for_each(|header| {
+                    req_h.insert(header.0, HeaderValue::from_str(&header.1).unwrap());
+                });
             }
         }
         let req = req.body(body).expect("failed to build a request");
 
         trace!("{:?}", req);
-        let mut res = self.client.request(req).await?;
+        let res = self.client.request(req).await?;
 
         trace!("{:?}", res);
         Ok(res)
@@ -121,7 +119,7 @@ impl Docker {
     /// Get auth token for authorized operations  
     /// Returns a base64 encoded json with user data.
     pub async fn authenticate(&self, opts: &AuthOpts) -> Result<String, Error> {
-        let mut res = self
+        let res = self
             .req(
                 Method::POST,
                 "/auth".into(),

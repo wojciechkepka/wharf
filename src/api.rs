@@ -27,9 +27,9 @@ use crate::{Docker, Msg};
 use failure::Error;
 use hyper::{body::to_bytes, Body, Method};
 use log::*;
+use serde_json::{json, Value};
 use std::path::Path;
 use std::str;
-
 macro_rules! err_msg {
     ($t: ident, $e: expr) => {
         match serde_json::from_slice::<Msg>($t.as_ref()) {
@@ -248,7 +248,7 @@ impl<'d> Container<'d> {
         }
     }
     /// Work in progress...
-    pub async fn logs(&self, opts: &ContainerLogsOpts) -> Result<String, Error> {
+    pub async fn logs(&self, _opts: &ContainerLogsOpts) -> Result<String, Error> {
         unimplemented!()
     }
     /// Get a tar archive of a resource in the filesystem of container id  
@@ -374,25 +374,97 @@ impl<'d> Container<'d> {
         }
     }
     /// Attach to a container
-    pub async fn attach(&self) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn attach(&self, opts: &AttachOpts) -> Result<hyper::upgrade::Upgraded, Error> {
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/attach", self.id),
+                Some(opts.to_query()?),
+                Body::from(""),
+                Some(vec![
+                    ("Connection", "Upgrade".into()),
+                    ("Upgrade", "tcp".into()),
+                ]),
+            )
+            .await?;
+        let status = res.status().as_u16();
+        match status {
+            101 => match res.into_body().on_upgrade().await {
+                Ok(upgraded) => Ok(upgraded),
+                Err(e) => Err(format_err!("connection upgrade failed - {:?}", e)),
+            },
+            other => {
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
+                match other {
+                    400 => err_msg!(text, "bad parameter"),
+                    404 => err_msg!(text, "no such container"),
+                    500 => err_msg!(text, "server error"),
+                    _ => err_msg!(text, ""),
+                }
+            }
+        }
     }
     /// Exec a command
     pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
-        unimplemented!()
+        let exec_id = self.create_exec_instance(opts).await?;
+        self.start_exec_instance(exec_id.trim_matches('"'), opts).await
     }
     // Starts the exec instance
-    async fn start_exec_instance(
-        &self,
-        id: &str,
-        detach: bool,
-        tty: bool,
-    ) -> Result<String, Error> {
-        unimplemented!()
+    #[allow(dead_code)]
+    async fn start_exec_instance(&self, id: &str, opts: &ExecOpts) -> Result<String, Error> {
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/exec/{}/start", id),
+                None,
+                Body::from(serde_json::to_vec(opts.opts())?),
+                Some(vec![("Content-type", "application/json".into())]),
+            )
+            .await?;
+
+        let status = res.status().as_u16();
+        match status {
+            200 => Ok(str::from_utf8(to_bytes(res.into_body()).await?.as_ref())?.to_string()),
+            other => {
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
+                match other {
+                    404 => err_msg!(text, "no such exec instance"),
+                    409 => err_msg!(text, "container is paused"),
+                    _ => err_msg!(text, ""),
+                }
+            }
+        }
     }
     // Returns Id of exec instance
     async fn create_exec_instance(&self, opts: &ExecOpts) -> Result<String, Error> {
-        unimplemented!()
+        let res = self
+            .docker
+            .req(
+                Method::POST,
+                format!("/containers/{}/exec", self.id),
+                None,
+                Body::from(serde_json::to_vec(opts.opts())?),
+                Some(vec![("Content-type", "application/json".into())]),
+            )
+            .await?;
+
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        trace!("{}", str::from_utf8(&text)?);
+        match status {
+            201 => match serde_json::from_slice::<Value>(&text)?.get("Id") {
+                Some(id) => Ok(id.to_string()),
+                _ => Err(format_err!("there was no field Id in the response body.")),
+            },
+            404 => err_msg!(text, "no such container"),
+            409 => err_msg!(text, "container is paused"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, ""),
+        }
     }
 }
 

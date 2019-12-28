@@ -27,7 +27,7 @@ use crate::{Docker, Msg};
 use failure::Error;
 use hyper::{body::to_bytes, Body, Method};
 use log::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::path::Path;
 use std::str;
 macro_rules! err_msg {
@@ -409,7 +409,8 @@ impl<'d> Container<'d> {
     /// Exec a command
     pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
         let exec_id = self.create_exec_instance(opts).await?;
-        self.start_exec_instance(exec_id.trim_matches('"'), opts).await
+        self.start_exec_instance(exec_id.trim_matches('"'), opts)
+            .await
     }
     // Starts the exec instance
     #[allow(dead_code)]

@@ -29,7 +29,7 @@ pub trait DockerOpts {
                 )
             })
             .collect();
-        Ok(format!("{}", q.join("&")))
+        Ok(q.join("&"))
     }
 }
 impl DockerOpts for UploadArchiveOpts {

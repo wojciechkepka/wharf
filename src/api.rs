@@ -455,10 +455,12 @@ impl<'d> Container<'d> {
 
         let status = res.status().as_u16();
         let text = to_bytes(res.into_body()).await?;
-        trace!("{}", str::from_utf8(&text)?);
         match status {
             201 => match serde_json::from_slice::<Value>(&text)?.get("Id") {
-                Some(id) => Ok(id.to_string()),
+                Some(id) => {
+                    trace!("{:?}", id);
+                    Ok(id.to_string())
+                }
                 _ => Err(format_err!("there was no field Id in the response body.")),
             },
             404 => err_msg!(text, "no such container"),

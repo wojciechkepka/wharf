@@ -410,7 +410,7 @@ impl<'d> Container<'d> {
     pub async fn exec(&self, opts: &ExecOpts) -> Result<CmdOut, Error> {
         let exec_id = self.create_exec_instance(opts).await?;
         let exec_id = exec_id.trim_matches('"');
-        Ok(CmdOut { 
+        Ok(CmdOut {
             out: self.start_exec_instance(&exec_id, opts).await?,
             info: self.docker.exec_inspect(&exec_id).await?,
         })
@@ -851,7 +851,7 @@ impl<'d> Images<'d> {
         let text = to_bytes(res.into_body()).await?;
         trace!("{}", str::from_utf8(&text)?);
         match status {
-            200 => Ok(serde_json::from_slice(&text).unwrap_or_default()),
+            200 => Ok(()),
             404 => err_msg!(text, "no such image"),
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, ""),

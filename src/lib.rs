@@ -166,10 +166,8 @@ impl Docker {
             500 => err_msg!(text, "server error"),
             _ => err_msg!(text, "unknown error"),
         }
-        
     }
 }
-
 
 #[derive(Serialize, Deserialize)]
 struct Msg {

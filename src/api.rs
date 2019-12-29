@@ -431,7 +431,6 @@ impl<'d> Container<'d> {
             200 => Ok(str::from_utf8(to_bytes(res.into_body()).await?.as_ref())?.to_string()),
             other => {
                 let text = to_bytes(res.into_body()).await?;
-                trace!("{}", str::from_utf8(&text)?);
                 match other {
                     404 => err_msg!(text, "no such exec instance"),
                     409 => err_msg!(text, "container is paused"),

@@ -253,3 +253,37 @@ pub struct NetworkData {
     #[serde(rename = "Containers")]
     pub containers: Option<Value>,
 }
+
+/// Exec output and data
+#[derive(Debug)]
+pub struct CmdOut {
+    pub out: String,
+    pub info: ExecInspect,
+}
+
+/// Information about a exec instance
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ExecInspect {
+    #[serde(rename = "CanRemove")]
+    can_remove: bool,
+    #[serde(rename = "ContainerID")]
+    container_id: String,
+    #[serde(rename = "DetachKeys")]
+    detach_keys: String,
+    #[serde(rename = "ExitCode")]
+    exit_code: i64,
+    #[serde(rename = "ID")]
+    id: String,
+    #[serde(rename = "OpenStderr")]
+    open_stderr: bool,
+    #[serde(rename = "OpenStdin")]
+    open_stdin: bool,
+    #[serde(rename = "OpenStdout")]
+    open_stdout: bool,
+    #[serde(rename = "ProcessConfig")]
+    process_config: Option<Value>,
+    #[serde(rename = "Running")]
+    running: bool,
+    #[serde(rename = "Pid")]
+    pid: i64,
+}

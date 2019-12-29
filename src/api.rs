@@ -407,13 +407,15 @@ impl<'d> Container<'d> {
         }
     }
     /// Exec a command
-    pub async fn exec(&self, opts: &ExecOpts) -> Result<String, Error> {
+    pub async fn exec(&self, opts: &ExecOpts) -> Result<CmdOut, Error> {
         let exec_id = self.create_exec_instance(opts).await?;
-        self.start_exec_instance(exec_id.trim_matches('"'), opts)
-            .await
+        let exec_id = exec_id.trim_matches('"');
+        Ok(CmdOut { 
+            out: self.start_exec_instance(&exec_id, opts).await?,
+            info: self.docker.exec_inspect(&exec_id).await?,
+        })
     }
     // Starts the exec instance
-    #[allow(dead_code)]
     async fn start_exec_instance(&self, id: &str, opts: &ExecOpts) -> Result<String, Error> {
         let res = self
             .docker

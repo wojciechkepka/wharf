@@ -43,6 +43,7 @@ pub mod opts;
 pub mod result;
 use crate::api::*;
 use crate::opts::*;
+use crate::result::ExecInspect;
 use failure::Error;
 use http::header::HeaderValue;
 use http::uri::PathAndQuery;
@@ -142,7 +143,33 @@ impl Docker {
             _ => err_msg!(text, "unknown error"),
         }
     }
+    pub async fn exec_inspect(&self, exec_id: &str) -> Result<ExecInspect, Error> {
+        trace!("{}", exec_id);
+        let res = self
+            .req(
+                Method::GET,
+                format!("/exec/{}/json", exec_id),
+                None,
+                Body::from(""),
+                None,
+            )
+            .await?;
+        debug!("{:?}", res);
+        let status = res.status().as_u16();
+        let text = to_bytes(res.into_body()).await?;
+        match status {
+            200 => {
+                let exec = serde_json::from_slice::<ExecInspect>(&text)?;
+                Ok(exec)
+            }
+            404 => err_msg!(text, "no such exec instance"),
+            500 => err_msg!(text, "server error"),
+            _ => err_msg!(text, "unknown error"),
+        }
+        
+    }
 }
+
 
 #[derive(Serialize, Deserialize)]
 struct Msg {

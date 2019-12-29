@@ -429,16 +429,21 @@ impl<'d> Container<'d> {
             .await?;
 
         let status = res.status().as_u16();
+        let slice = to_bytes(res.into_body()).await?;
         match status {
-            200 => Ok(str::from_utf8(to_bytes(res.into_body()).await?.as_ref())?.to_string()),
-            other => {
-                let text = to_bytes(res.into_body()).await?;
-                match other {
-                    404 => err_msg!(text, "no such exec instance"),
-                    409 => err_msg!(text, "container is paused"),
-                    _ => err_msg!(text, ""),
+            200 => match str::from_utf8(&slice) {
+                Ok(text) => {
+                    trace!("{}", text);
+                    Ok(text.to_string())
                 }
-            }
+                Err(e) => {
+                    error!("failed to parse text from exec {} - {}", &id, e);
+                    Ok("".to_string())
+                }
+            },
+            404 => err_msg!(slice, "no such exec instance"),
+            409 => err_msg!(slice, "container is paused"),
+            _ => err_msg!(slice, ""),
         }
     }
     // Returns Id of exec instance
@@ -455,19 +460,22 @@ impl<'d> Container<'d> {
             .await?;
 
         let status = res.status().as_u16();
-        let text = to_bytes(res.into_body()).await?;
+        let slice = to_bytes(res.into_body()).await?;
+        if let Ok(text) = str::from_utf8(&slice) {
+            trace!("{}", text);
+        }
         match status {
-            201 => match serde_json::from_slice::<Value>(&text)?.get("Id") {
+            201 => match serde_json::from_slice::<Value>(&slice)?.get("Id") {
                 Some(id) => {
                     trace!("{:?}", id);
                     Ok(id.to_string())
                 }
                 _ => Err(format_err!("there was no field Id in the response body.")),
             },
-            404 => err_msg!(text, "no such container"),
-            409 => err_msg!(text, "container is paused"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, ""),
+            404 => err_msg!(slice, "no such container"),
+            409 => err_msg!(slice, "container is paused"),
+            500 => err_msg!(slice, "server error"),
+            _ => err_msg!(slice, ""),
         }
     }
 }

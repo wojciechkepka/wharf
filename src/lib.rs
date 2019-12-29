@@ -156,15 +156,18 @@ impl Docker {
             .await?;
         debug!("{:?}", res);
         let status = res.status().as_u16();
-        let text = to_bytes(res.into_body()).await?;
+        let slice = to_bytes(res.into_body()).await?;
+        if let Ok(text) = str::from_utf8(&slice) {
+            trace!("{}", text);
+        }
         match status {
             200 => {
-                let exec = serde_json::from_slice::<ExecInspect>(&text)?;
+                let exec = serde_json::from_slice::<ExecInspect>(&slice)?;
                 Ok(exec)
             }
-            404 => err_msg!(text, "no such exec instance"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, "unknown error"),
+            404 => err_msg!(slice, "no such exec instance"),
+            500 => err_msg!(slice, "server error"),
+            _ => err_msg!(slice, "unknown error"),
         }
     }
 }

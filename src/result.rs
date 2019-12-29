@@ -285,5 +285,5 @@ pub struct ExecInspect {
     #[serde(rename = "Running")]
     running: bool,
     #[serde(rename = "Pid")]
-    pid: i64,
+    pid: Option<i64>,
 }

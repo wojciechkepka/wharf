@@ -658,12 +658,12 @@ impl ExecOpts {
         self
     }
     /// A list of environment variables in the form ["VAR=value", ...].
-    pub fn env(&mut self, env: &[String]) -> &mut Self {
+    pub fn env(&mut self, env: &[&str]) -> &mut Self {
         insert!(self, "Env", env);
         self
     }
     /// Command to run, as a string or array of strings.
-    pub fn cmd(&mut self, cmd: &[String]) -> &mut Self {
+    pub fn cmd(&mut self, cmd: &[&str]) -> &mut Self {
         insert!(self, "Cmd", cmd);
         self
     }

@@ -83,7 +83,7 @@ macro_rules! post_container {
 #[derive(Debug)]
 pub struct Container<'d> {
     docker: &'d Docker,
-    id: String,
+    pub id: String,
 }
 impl<'d> Container<'d> {
     /// new API interface for containers

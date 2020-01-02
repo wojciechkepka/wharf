@@ -856,13 +856,17 @@ impl<'d> Images<'d> {
             )
             .await?;
         let status = res.status().as_u16();
-        let text = to_bytes(res.into_body()).await?;
-        trace!("{}", str::from_utf8(&text)?);
         match status {
             200 => Ok(()),
-            404 => err_msg!(text, "no such image"),
-            500 => err_msg!(text, "server error"),
-            _ => err_msg!(text, ""),
+            other => {
+                let text = to_bytes(res.into_body()).await?;
+                trace!("{}", str::from_utf8(&text)?);
+                match other {
+                    404 => err_msg!(text, "no such image"),
+                    500 => err_msg!(text, "server error"),
+                    _ => err_msg!(text, ""),
+                }
+            }
         }
     }
 }

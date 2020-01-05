@@ -25,7 +25,8 @@ use crate::opts::*;
 use crate::result::*;
 use crate::{Docker, Msg};
 use failure::Error;
-use hyper::{body::to_bytes, Body, Method};
+use futures::stream::{Stream, StreamExt};
+use hyper::{body::to_bytes, body::HttpBody as _, Body, Method};
 use log::*;
 use serde_json::Value;
 use std::path::Path;
@@ -844,7 +845,7 @@ impl<'d> Images<'d> {
     /// Build an image from a tar archive with a Dockerfile in it.
     ///The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the dockerfile parameter. See the Dockerfile reference for more information.
     //The Docker daemon performs a preliminary validation of the Dockerfile before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
-    pub async fn build(&self, archive: &[u8], opts: &ImageBuilderOpts) -> Result<(), Error> {
+    pub async fn build(&self, archive: &[u8], opts: &ImageBuilderOpts) -> Result<String, Error> {
         let res = self
             .docker
             .req(
@@ -857,7 +858,15 @@ impl<'d> Images<'d> {
             .await?;
         let status = res.status().as_u16();
         match status {
-            200 => Ok(()),
+            200 => {
+                let mut out = Vec::new();
+                let mut stream = res.into_body();
+                while let Some(chunk) = stream.next().await {
+                    let bytes = chunk?;
+                    out = [&out[..], &bytes[..]].concat();
+                }
+                Ok(str::from_utf8(&out[..])?.to_string())
+            }
             other => {
                 let text = to_bytes(res.into_body()).await?;
                 trace!("{}", str::from_utf8(&text)?);

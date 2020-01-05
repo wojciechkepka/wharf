@@ -1,6 +1,6 @@
 [package]
 name = "wharf"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
 edition = "2018"
 license = "MIT"
